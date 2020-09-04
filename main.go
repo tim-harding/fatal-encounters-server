@@ -3,6 +3,11 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"net/http"
+
+	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 
 	_ "github.com/lib/pq"
 )
@@ -30,5 +35,15 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Successfully connected!")
+	log.Println("Connected to database")
+
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Get("/", root)
+	err = http.ListenAndServe(":3000", r)
+	log.Fatal(err)
+}
+
+func root(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("welcome"))
 }
