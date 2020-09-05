@@ -14,7 +14,7 @@ func main() {
 	defer shared.Db.Close()
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Get("/city", city.City)
+	r.Get("/city", city.HandleRoute)
 	err := http.ListenAndServe(":3000", r)
 	if err != nil {
 		log.Fatal(err)

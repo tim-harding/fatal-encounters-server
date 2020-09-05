@@ -11,52 +11,142 @@ import (
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
-type cityFilter struct {
-	Name  string `json:"name"`
-	State int    `json:"state"`
+type queryFunction func(filter filter) (*sql.Rows, error)
+
+type filter struct {
+	Search string `json:"name"`
+	State  int    `json:"state"`
 }
 
-type cityRow struct {
+type city struct {
 	ID    int    `json:"id"`
 	Name  string `json:"name"`
 	State int    `json:"state"`
 }
 
-type cityResponse struct {
-	Rows []cityRow `json:"rows"`
+type response struct {
+	Rows []city `json:"rows"`
 }
 
-const (
-	cityQueryBase           = "SELECT id, name, state FROM city"
-	cityQueryConditionBegin = " WHERE "
-	cityQueryConditionAnd   = " AND "
-	cityQueryFilterState    = "state=$"
-	cityQueryFilterName     = "name ILIKE '%' || $1 || '%'"
-	cityQueryLimit          = " LIMIT 12"
+var (
+	queryByState        *sql.Stmt
+	queryByName         *sql.Stmt
+	queryByNameAndState *sql.Stmt
+	queryAny            *sql.Stmt
 )
 
-// City responds to /city queries
-func City(w http.ResponseWriter, r *http.Request) {
-	var filter cityFilter
-	filter.State = -1
+// HandleRoute responds to /city queries
+func HandleRoute(w http.ResponseWriter, r *http.Request) {
+	filter := createFilter(r)
+	query := pickQueryFunction(filter)
+	res, err := responseForQuery(query, filter)
+	if err != nil {
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	json.NewEncoder(w).Encode(res)
+}
 
-	stateStrs, ok := r.URL.Query()["state"]
-	if ok && len(stateStrs) == 1 {
-		stateStr := stateStrs[0]
-		stateInt, err := strconv.Atoi(stateStr)
-		if err == nil {
-			filter.State = stateInt
+func init() {
+	const (
+		queryComponentBase           = "SELECT id, name, state FROM city"
+		queryComponentConditionBegin = " WHERE "
+		queryComponentConditionAnd   = " AND "
+		queryComponentFilterState    = "state=$"
+		queryComponentFilterName     = "name ILIKE '%' || $1 || '%'"
+		queryComponentLimit          = " LIMIT 12"
+	)
+
+	query := fmt.Sprintf(
+		"%v%v%v%v%v",
+		queryComponentBase,
+		queryComponentConditionBegin,
+		queryComponentFilterState,
+		"1",
+		queryComponentLimit,
+	)
+	queryByState = statementForQuery(query)
+
+	query = fmt.Sprintf(
+		"%v%v%v%v",
+		queryComponentBase,
+		queryComponentConditionBegin,
+		queryComponentFilterName,
+		queryComponentLimit,
+	)
+	queryByName = statementForQuery(query)
+
+	query = fmt.Sprintf(
+		"%v%v%v%v%v%v%v",
+		queryComponentBase,
+		queryComponentConditionBegin,
+		queryComponentFilterName,
+		queryComponentConditionAnd,
+		queryComponentFilterState,
+		"2",
+		queryComponentLimit,
+	)
+	queryByNameAndState = statementForQuery(query)
+
+	query = fmt.Sprintf(
+		"%v%v",
+		queryComponentBase,
+		queryComponentLimit,
+	)
+	queryAny = statementForQuery(query)
+}
+
+func statementForQuery(query string) *sql.Stmt {
+	stmt, err := shared.Db.Prepare(query)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return stmt
+}
+
+func responseForQuery(query queryFunction, filter filter) (response, error) {
+	rows, err := query(filter)
+	if err != nil {
+		return response{}, err
+	}
+
+	defer rows.Close()
+
+	res, err := rowsToResponse(rows)
+	if err != nil {
+		return response{}, err
+	}
+
+	err = rows.Err()
+	if err != nil {
+		return response{}, err
+	}
+
+	return res, nil
+}
+
+func rowsToResponse(rows *sql.Rows) (response, error) {
+	res := response{make([]city, 0)}
+	for rows.Next() {
+		var (
+			id    int
+			name  string
+			state int
+		)
+		err := rows.Scan(&id, &name, &state)
+		if err != nil {
+			return response{}, err
 		}
+		row := city{id, name, state}
+		res.Rows = append(res.Rows, row)
 	}
+	return res, nil
+}
 
-	filterStrs, ok := r.URL.Query()["filter"]
-	if ok && len(filterStrs) == 1 {
-		filter.Name = filterStrs[0]
-	}
-
+func pickQueryFunction(filter filter) queryFunction {
 	closure := queryCityFilterNone
 	filterByState := filter.State > -1
-	filterByName := len(filter.Name) > 0
+	filterByName := len(filter.Search) > 0
 	if filterByState {
 		if filterByName {
 			closure = queryCityFilterBoth
@@ -68,78 +158,46 @@ func City(w http.ResponseWriter, r *http.Request) {
 			closure = queryCityFilterName
 		}
 	}
+	return closure
+}
 
-	rows, err := closure(filter)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer rows.Close()
-	var (
-		id    int
-		name  string
-		state int
-	)
-	response := cityResponse{make([]cityRow, 0)}
-	for rows.Next() {
-		err := rows.Scan(&id, &name, &state)
-		if err != nil {
-			http.Error(w, "Internal error", http.StatusInternalServerError)
-			return
+func createFilter(r *http.Request) filter {
+	filter := filter{"", -1}
+	populateStateFilter(r, &filter)
+	populateSearchFilter(r, &filter)
+	return filter
+}
+
+func populateStateFilter(r *http.Request, filter *filter) {
+	strings, ok := r.URL.Query()["state"]
+	if ok && len(strings) == 1 {
+		string := strings[0]
+		integer, err := strconv.Atoi(string)
+		if err == nil {
+			filter.State = integer
 		}
-		row := cityRow{id, name, state}
-		response.Rows = append(response.Rows, row)
 	}
-	err = rows.Err()
-	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
+}
+
+func populateSearchFilter(r *http.Request, filter *filter) {
+	strings, ok := r.URL.Query()["search"]
+	if ok && len(strings) == 1 {
+		filter.Search = strings[0]
 	}
-
-	json.NewEncoder(w).Encode(response)
 }
 
-func queryCityFilterState(filter cityFilter) (*sql.Rows, error) {
-	query := fmt.Sprintf(
-		"%v%v%v%v%v",
-		cityQueryBase,
-		cityQueryConditionBegin,
-		cityQueryFilterState,
-		"1",
-		cityQueryLimit,
-	)
-	return shared.Db.Query(query, filter.State)
+func queryCityFilterState(filter filter) (*sql.Rows, error) {
+	return queryByState.Query(filter.State)
 }
 
-func queryCityFilterName(filter cityFilter) (*sql.Rows, error) {
-	query := fmt.Sprintf(
-		"%v%v%v%v",
-		cityQueryBase,
-		cityQueryConditionBegin,
-		cityQueryFilterName,
-		cityQueryLimit,
-	)
-	return shared.Db.Query(query, filter.Name)
+func queryCityFilterName(filter filter) (*sql.Rows, error) {
+	return queryByName.Query(filter.Search)
 }
 
-func queryCityFilterBoth(filter cityFilter) (*sql.Rows, error) {
-	query := fmt.Sprintf(
-		"%v%v%v%v%v%v%v",
-		cityQueryBase,
-		cityQueryConditionBegin,
-		cityQueryFilterName,
-		cityQueryConditionAnd,
-		cityQueryFilterState,
-		"2",
-		cityQueryLimit,
-	)
-	return shared.Db.Query(query, filter.Name, filter.State)
+func queryCityFilterBoth(filter filter) (*sql.Rows, error) {
+	return queryByNameAndState.Query(filter.Search, filter.State)
 }
 
-func queryCityFilterNone(filter cityFilter) (*sql.Rows, error) {
-	query := fmt.Sprintf(
-		"%v%v",
-		cityQueryBase,
-		cityQueryLimit,
-	)
-	return shared.Db.Query(query)
+func queryCityFilterNone(filter filter) (*sql.Rows, error) {
+	return queryAny.Query()
 }
