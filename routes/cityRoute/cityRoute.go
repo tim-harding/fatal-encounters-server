@@ -1,4 +1,4 @@
-package cityRoute
+package cityroute
 
 import (
 	"database/sql"

@@ -1,4 +1,4 @@
-package stateRoute
+package stateroute
 
 import (
 	"database/sql"
