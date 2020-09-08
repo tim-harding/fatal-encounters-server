@@ -1,15 +1,14 @@
-package stateroute
+package enumroute
 
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
-
-var query *sql.Stmt
 
 type state struct {
 	ID   int
@@ -20,9 +19,17 @@ type response struct {
 	Rows []state
 }
 
-// HandleRoute responds to /city queries
-func HandleRoute(w http.ResponseWriter, r *http.Request) {
-	res, err := responseForQuery()
+// HandleRouteFactory creates functions to respond to queries
+// on enumeration tables that include id and name
+func HandleRouteFactory(tableName string) http.HandlerFunc {
+	query := createStatement(tableName)
+	return func(w http.ResponseWriter, r *http.Request) {
+		handleRoute(w, r, query)
+	}
+}
+
+func handleRoute(w http.ResponseWriter, r *http.Request, query *sql.Stmt) {
+	res, err := responseForQuery(query)
 	if err != nil {
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
@@ -30,15 +37,16 @@ func HandleRoute(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
-func init() {
-	stmt, err := shared.Db.Prepare("SELECT id, name FROM state")
+func createStatement(tableName string) *sql.Stmt {
+	queryString := fmt.Sprintf("SELECT id, name FROM %s", tableName)
+	stmt, err := shared.Db.Prepare(queryString)
 	if err != nil {
 		log.Fatal(err)
 	}
-	query = stmt
+	return stmt
 }
 
-func responseForQuery() (response, error) {
+func responseForQuery(query *sql.Stmt) (response, error) {
 	rows, err := query.Query()
 	if err != nil {
 		return response{}, err
