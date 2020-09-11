@@ -48,6 +48,6 @@ func TestEmptyWhereClauseDoesNothing(t *testing.T) {
 	query := baseQuery()
 	query.AddClause(where)
 	// Todo: trim query?
-	const wanted = "SELECT a, b FROM test "
+	const wanted = "SELECT a, b FROM test"
 	try(query, wanted, t)
 }

@@ -33,7 +33,10 @@ type query struct {
 func (q *query) String() string {
 	subqueries := make([]string, 0, len(q.subqueries))
 	for _, subquery := range q.subqueries {
-		subqueries = append(subqueries, subquery.String())
+		querystring := subquery.String()
+		if querystring != "" {
+			subqueries = append(subqueries, querystring)
+		}
 	}
 	query := strings.Join(subqueries, " ")
 	for i := range q.subqueries {
