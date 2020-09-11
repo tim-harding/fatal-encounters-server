@@ -3,10 +3,14 @@ package shared
 import "testing"
 
 func TestBuildsBasicQuery(t *testing.T) {
-	query := QueryMaker{
-		table:      "test",
-		rows:       []string{"a", "b"},
-		subqueries: []Subquerier{},
+	base := Select{
+		table: "test",
+		rows:  []string{"a", "b"},
+	}
+	query := RawQuery{
+		subqueries: []Subquerier{
+			base,
+		},
 	}
 	const wanted = "SELECT a, b FROM test"
 	sql := query.Build()
