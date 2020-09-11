@@ -19,6 +19,11 @@ type response struct {
 	Rows []state
 }
 
+type filter struct {
+	Limit  int
+	Search int
+}
+
 // HandleRouteFactory creates functions to respond to queries
 // on enumeration tables that include id and name
 func HandleRouteFactory(tableName string) http.HandlerFunc {
