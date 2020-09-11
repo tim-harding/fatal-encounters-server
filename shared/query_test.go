@@ -9,13 +9,13 @@ func base() selectClause {
 	}
 }
 
-func baseQuery() Query {
+func baseQuery() Subclauser {
 	query := NewQuery()
 	query.AddClause(base())
 	return query
 }
 
-func try(query Query, wanted string, t *testing.T) {
+func try(query Clauser, wanted string, t *testing.T) {
 	sql := query.String()
 	if sql != wanted {
 		t.Errorf("Was `%s`;\nWant `%s`", sql, wanted)

@@ -11,20 +11,26 @@ type Clauser interface {
 	Parameters() []interface{}
 }
 
+// Subclauser is a clause that can have clauses added to it
+type Subclauser interface {
+	Clauser
+	AddClause(clause Clauser)
+}
+
 // NewQuery creates an empty query
-func NewQuery() Query {
-	return Query{
+func NewQuery() Subclauser {
+	return &query{
 		subqueries: []Clauser{},
 	}
 }
 
 // Query is a SQL query
-type Query struct {
+type query struct {
 	subqueries []Clauser
 }
 
 // String constructs the SQL query string
-func (q Query) String() string {
+func (q query) String() string {
 	subqueries := make([]string, 0, len(q.subqueries))
 	for _, subquery := range q.subqueries {
 		subqueries = append(subqueries, subquery.String())
@@ -38,7 +44,7 @@ func (q Query) String() string {
 }
 
 // Parameters is the parameters for the query
-func (q Query) Parameters() []interface{} {
+func (q query) Parameters() []interface{} {
 	parameters := make([]interface{}, 0)
 	for _, query := range q.subqueries {
 		for _, clause := range query.Parameters() {
@@ -49,7 +55,7 @@ func (q Query) Parameters() []interface{} {
 }
 
 // AddClause adds a new clause to the query
-func (q *Query) AddClause(s Clauser) {
+func (q *query) AddClause(s Clauser) {
 	q.subqueries = append(q.subqueries, s)
 }
 
