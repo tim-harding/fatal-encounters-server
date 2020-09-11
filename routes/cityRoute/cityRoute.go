@@ -33,33 +33,31 @@ func HandleRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildQuery(r *http.Request) shared.Clauser {
-	rows := []string{
+	q := shared.NewQuery()
+	q.AddClause(selectClause())
+	q.AddClause(whereClause(r))
+	q.AddClause(limitClause(r))
+	q.AddClause(orderClause())
+	return q
+}
+
+func selectClause() shared.Clauser {
+	desiredRowNames := []string{
 		"id",
 		"name",
 		"state",
 	}
-	q := shared.NewQuery()
-	base := shared.NewSelectClause("city", rows)
-	q.AddClause(base)
+	return shared.NewSelectClause("city", desiredRowNames)
+}
+
+func whereClause(r *http.Request) shared.Clauser {
 	w := shared.NewWhereClause(shared.CombinatorAnd)
-	addClause(w, r, makeStateClause)
-	addClause(w, r, makeSearchClause)
-	q.AddClause(w)
-	addClause(q, r, makeLimitClause)
-	q.AddClause(makeOrderClause())
-	return q
+	w.AddClause(makeStateClause(r))
+	w.AddClause(makeSearchClause(r))
+	return w
 }
 
-type maybeClause func(r *http.Request) shared.Clauser
-
-func addClause(w shared.Subclauser, r *http.Request, clauseFunc maybeClause) {
-	clause := clauseFunc(r)
-	if clause != nil {
-		w.AddClause(clause)
-	}
-}
-
-func makeLimitClause(r *http.Request) shared.Clauser {
+func limitClause(r *http.Request) shared.Clauser {
 	limit := 1
 	strings, ok := r.URL.Query()["count"]
 	if ok && len(strings) == 1 {
@@ -95,7 +93,7 @@ func makeSearchClause(r *http.Request) shared.Clauser {
 	return nil
 }
 
-func makeOrderClause() shared.Clauser {
+func orderClause() shared.Clauser {
 	order := shared.OrderingAscending
 	columns := []string{"state", "id"}
 	return shared.NewOrderClause(order, columns)
