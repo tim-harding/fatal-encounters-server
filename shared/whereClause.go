@@ -35,12 +35,15 @@ func (w *whereClause) AddClause(clause Clauser) {
 
 // String returns a SQL snippet
 func (w *whereClause) String() string {
-	if len(w.clauses) == 0 {
-		return ""
-	}
 	subqueries := make([]string, 0, len(w.clauses))
 	for _, subquery := range w.clauses {
-		subqueries = append(subqueries, subquery.String())
+		querystring := subquery.String()
+		if querystring != "" {
+			subqueries = append(subqueries, querystring)
+		}
+	}
+	if len(subqueries) < 1 {
+		return ""
 	}
 	combinator := [...]string{"AND", "OR"}[w.combinator]
 	combinator = fmt.Sprintf(" %s ", combinator)

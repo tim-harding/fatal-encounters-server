@@ -20,18 +20,6 @@ type response struct {
 	Rows []city `json:"rows"`
 }
 
-type stateClause struct {
-	state int
-}
-
-func (s stateClause) String() string {
-	return "state = ?"
-}
-
-func (s stateClause) Parameters() []interface{} {
-	return []interface{}{s.state}
-}
-
 // HandleRoute responds to /city queries
 func HandleRoute(w http.ResponseWriter, r *http.Request) {
 	query := buildQuery(r)
@@ -70,7 +58,6 @@ func addClause(w shared.Subclauser, r *http.Request, clauseFunc maybeClause) {
 	}
 }
 
-// Todo: abstract integer parsing
 func makeLimitClause(r *http.Request) shared.Clauser {
 	limit := 1
 	strings, ok := r.URL.Query()["count"]
@@ -86,15 +73,17 @@ func makeLimitClause(r *http.Request) shared.Clauser {
 }
 
 func makeStateClause(r *http.Request) shared.Clauser {
+	states := make([]int, 0)
 	strings, ok := r.URL.Query()["state"]
-	if ok && len(strings) == 1 {
-		string := strings[0]
-		integer, err := strconv.Atoi(string)
-		if err == nil {
-			return stateClause{integer}
+	if ok {
+		for _, string := range strings {
+			integer, err := strconv.Atoi(string)
+			if err == nil {
+				states = append(states, integer)
+			}
 		}
 	}
-	return nil
+	return shared.NewInClause("state", states)
 }
 
 func makeSearchClause(r *http.Request) shared.Clauser {
