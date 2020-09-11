@@ -46,6 +46,7 @@ func buildQuery(r *http.Request) shared.Clauser {
 	addClause(w, r, makeSearchClause)
 	q.AddClause(w)
 	addClause(q, r, makeLimitClause)
+	q.AddClause(makeOrderClause())
 	return q
 }
 
@@ -92,6 +93,12 @@ func makeSearchClause(r *http.Request) shared.Clauser {
 		return shared.NewTextSearchClause("name", strings[0])
 	}
 	return nil
+}
+
+func makeOrderClause() shared.Clauser {
+	order := shared.OrderingAscending
+	columns := []string{"state", "id"}
+	return shared.NewOrderClause(order, columns)
 }
 
 func responseForQuery(query shared.Clauser) (response, error) {
