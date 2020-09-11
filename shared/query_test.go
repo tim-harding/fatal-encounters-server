@@ -40,3 +40,24 @@ func TestPagination(t *testing.T) {
 	const wanted = "SELECT a, b FROM test LIMIT $1 OFFSET $2"
 	try(query, wanted, t)
 }
+
+func TestTextSearchQuery(t *testing.T) {
+	search := SearchFilter{
+		column: "column",
+		term:   "find",
+	}
+	where := Where{
+		combinator: CombinatorAnd,
+		subqueries: []Subquerier{
+			search,
+		},
+	}
+	query := RawQuery{
+		subqueries: []Subquerier{
+			base(),
+			where,
+		},
+	}
+	const wanted = "SELECT a, b FROM test WHERE column ILIKE '%' || $1 || '%'"
+	try(query, wanted, t)
+}

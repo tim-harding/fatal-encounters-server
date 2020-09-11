@@ -94,7 +94,7 @@ func (w Where) Subquery() string {
 	combinator := [...]string{"AND", "OR"}[w.combinator]
 	combinator = fmt.Sprintf(" %s ", combinator)
 	combined := strings.Join(subqueries, combinator)
-	return fmt.Sprintf("(%s)", combined)
+	return fmt.Sprintf("WHERE %s", combined)
 }
 
 // Parms returns the SQL query placeholder contents
