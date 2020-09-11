@@ -5,7 +5,11 @@ import (
 	"strings"
 )
 
-// TODO: don't include LIMIT OFFSET if it has no contents
+// Clauser is an interface for SQL query WHERE terms
+type Clauser interface {
+	fmt.Stringer
+	Parameters() []interface{}
+}
 
 // NewQuery creates an empty query
 func NewQuery() Query {
@@ -23,7 +27,7 @@ type Query struct {
 func (q Query) String() string {
 	subqueries := make([]string, 0, len(q.subqueries))
 	for _, subquery := range q.subqueries {
-		subqueries = append(subqueries, subquery.Term())
+		subqueries = append(subqueries, subquery.String())
 	}
 	query := strings.Join(subqueries, " ")
 	for i := range q.subqueries {
@@ -33,15 +37,15 @@ func (q Query) String() string {
 	return query
 }
 
-// Parms is the parameters for the query
-func (q Query) Parms() []interface{} {
-	parms := make([]interface{}, 0)
+// Parameters is the parameters for the query
+func (q Query) Parameters() []interface{} {
+	parameters := make([]interface{}, 0)
 	for _, query := range q.subqueries {
-		for _, clause := range query.Parms() {
-			parms = append(parms, clause)
+		for _, clause := range query.Parameters() {
+			parameters = append(parameters, clause)
 		}
 	}
-	return parms
+	return parameters
 }
 
 // AddClause adds a new clause to the query
@@ -62,39 +66,45 @@ func NewSelectClause(table string, rows []string) Clauser {
 	}
 }
 
-// Term returns a SQL snippet
-func (s selectClause) Term() string {
+// String returns a SQL snippet
+func (s selectClause) String() string {
 	rows := strings.Join(s.rows, ", ")
 	return fmt.Sprintf("SELECT %s FROM %s", rows, s.table)
 }
 
-// Parms returns the SQL query placeholder contents
-func (s selectClause) Parms() []interface{} {
+// Parameters returns the SQL query placeholder contents
+func (s selectClause) Parameters() []interface{} {
 	return []interface{}{}
 }
 
-// Clauser is an interface for SQL query WHERE terms
-type Clauser interface {
-	Term() string
-	Parms() []interface{}
-}
-
-// Page is a SQL query pagination term
-type Page struct {
+type pageClause struct {
 	limit  int
 	offset int
 }
 
-// Term returns a SQL snippet
-func (p Page) Term() string {
-	return "LIMIT ? OFFSET ?"
+// NewPageClause creates a pagination clause
+func NewPageClause(limit, offset int) Clauser {
+	return pageClause{limit, offset}
 }
 
-// Parms returns the SQL query placeholder contents
-func (p Page) Parms() []interface{} {
+// String returns a SQL snippet
+func (p pageClause) String() string {
+	if p.offset > 0 {
+		return "LIMIT ? OFFSET ?"
+	}
+	return "LIMIT ?"
+}
+
+// Parameters returns the SQL query placeholder contents
+func (p pageClause) Parameters() []interface{} {
+	if p.offset > 0 {
+		return []interface{}{
+			p.limit,
+			p.offset,
+		}
+	}
 	return []interface{}{
 		p.limit,
-		p.offset,
 	}
 }
 
@@ -127,14 +137,14 @@ func (w *WhereClause) AddClause(clause Clauser) {
 	w.clauses = append(w.clauses, clause)
 }
 
-// Term returns a SQL snippet
-func (w WhereClause) Term() string {
+// String returns a SQL snippet
+func (w WhereClause) String() string {
 	if len(w.clauses) == 0 {
 		return ""
 	}
 	subqueries := make([]string, 0, len(w.clauses))
 	for _, subquery := range w.clauses {
-		subqueries = append(subqueries, subquery.Term())
+		subqueries = append(subqueries, subquery.String())
 	}
 	combinator := [...]string{"AND", "OR"}[w.combinator]
 	combinator = fmt.Sprintf(" %s ", combinator)
@@ -142,15 +152,15 @@ func (w WhereClause) Term() string {
 	return fmt.Sprintf("WHERE %s", combined)
 }
 
-// Parms returns the SQL query placeholder contents
-func (w WhereClause) Parms() []interface{} {
-	parms := make([]interface{}, 0)
+// Parameters returns the SQL query placeholder contents
+func (w WhereClause) Parameters() []interface{} {
+	parameters := make([]interface{}, 0)
 	for _, subquery := range w.clauses {
-		for _, parm := range subquery.Parms() {
-			parms = append(parms, parm)
+		for _, parm := range subquery.Parameters() {
+			parameters = append(parameters, parm)
 		}
 	}
-	return parms
+	return parameters
 }
 
 type textSearchClause struct {
@@ -166,13 +176,13 @@ func NewTextSearchClause(column, term string) Clauser {
 	}
 }
 
-// Term returns a SQL snippet
-func (s textSearchClause) Term() string {
+// String returns a SQL snippet
+func (s textSearchClause) String() string {
 	return fmt.Sprintf("%s ILIKE '%%' || ? || '%%'", s.column)
 }
 
-// Parms returns the SQL query placeholder contents
-func (s textSearchClause) Parms() []interface{} {
+// Parameters returns the SQL query placeholder contents
+func (s textSearchClause) Parameters() []interface{} {
 	return []interface{}{
 		s.term,
 	}

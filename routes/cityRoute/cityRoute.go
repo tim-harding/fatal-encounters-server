@@ -10,8 +10,6 @@ import (
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
-// Todo: add LIMIT OFFSET
-
 type city struct {
 	ID    int    `json:"id"`
 	Name  string `json:"name"`
@@ -26,11 +24,11 @@ type stateClause struct {
 	state int
 }
 
-func (s stateClause) Term() string {
+func (s stateClause) String() string {
 	return "state = ?"
 }
 
-func (s stateClause) Parms() []interface{} {
+func (s stateClause) Parameters() []interface{} {
 	return []interface{}{s.state}
 }
 
@@ -47,19 +45,34 @@ func HandleRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildQuery(r *http.Request) shared.Query {
-	w := shared.NewWhereClause(shared.CombinatorAnd)
-	addStateClause(r, &w)
-	addSearchClause(r, &w)
-	q := shared.NewQuery()
 	rows := []string{
 		"id",
 		"name",
 		"state",
 	}
+	q := shared.NewQuery()
 	base := shared.NewSelectClause("city", rows)
 	q.AddClause(base)
+	w := shared.NewWhereClause(shared.CombinatorAnd)
+	addStateClause(r, &w)
+	addSearchClause(r, &w)
 	q.AddClause(w)
+	addLimitClause(r, &q)
 	return q
+}
+
+func addLimitClause(r *http.Request, w *shared.Query) {
+	limit := 1
+	strings, ok := r.URL.Query()["count"]
+	if ok && len(strings) == 1 {
+		string := strings[0]
+		integer, err := strconv.Atoi(string)
+		if err == nil {
+			limit = integer
+		}
+	}
+	clause := shared.NewPageClause(limit, 0)
+	w.AddClause(clause)
 }
 
 func addStateClause(r *http.Request, w *shared.WhereClause) {
@@ -85,7 +98,7 @@ func addSearchClause(r *http.Request, w *shared.WhereClause) {
 func responseForQuery(query shared.Query) (response, error) {
 	queryString := query.String()
 	log.Printf(queryString)
-	rows, err := shared.Db.Query(queryString, query.Parms()...)
+	rows, err := shared.Db.Query(queryString, query.Parameters()...)
 	if err != nil {
 		return response{}, err
 	}
