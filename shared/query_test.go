@@ -2,23 +2,23 @@ package shared
 
 import "testing"
 
-func base() Select {
-	return Select{
+func base() selectClause {
+	return selectClause{
 		table: "test",
 		rows:  []string{"a", "b"},
 	}
 }
 
-func try(query RawQuery, wanted string, t *testing.T) {
-	sql := query.Build()
+func try(query Query, wanted string, t *testing.T) {
+	sql := query.String()
 	if sql != wanted {
 		t.Errorf("Was `%s`;\nWant `%s`", sql, wanted)
 	}
 }
 
 func TestBuildsBasicQuery(t *testing.T) {
-	query := RawQuery{
-		subqueries: []Subquerier{
+	query := Query{
+		subqueries: []Clauser{
 			base(),
 		},
 	}
@@ -31,8 +31,8 @@ func TestPagination(t *testing.T) {
 		limit:  12,
 		offset: 1,
 	}
-	query := RawQuery{
-		subqueries: []Subquerier{
+	query := Query{
+		subqueries: []Clauser{
 			base(),
 			page,
 		},
@@ -42,22 +42,35 @@ func TestPagination(t *testing.T) {
 }
 
 func TestTextSearchQuery(t *testing.T) {
-	search := SearchFilter{
+	search := textSearchClause{
 		column: "column",
 		term:   "find",
 	}
-	where := Where{
+	where := WhereClause{
 		combinator: CombinatorAnd,
-		subqueries: []Subquerier{
+		clauses: []Clauser{
 			search,
 		},
 	}
-	query := RawQuery{
-		subqueries: []Subquerier{
+	query := Query{
+		subqueries: []Clauser{
 			base(),
 			where,
 		},
 	}
 	const wanted = "SELECT a, b FROM test WHERE column ILIKE '%' || $1 || '%'"
+	try(query, wanted, t)
+}
+
+func TestEmptyWhereClauseDoesNothing(t *testing.T) {
+	where := NewWhereClause(CombinatorAnd)
+	query := Query{
+		subqueries: []Clauser{
+			base(),
+			where,
+		},
+	}
+	// Todo: trim query?
+	const wanted = "SELECT a, b FROM test "
 	try(query, wanted, t)
 }

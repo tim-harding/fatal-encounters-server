@@ -3,7 +3,6 @@ package cityroute
 import (
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -11,12 +10,7 @@ import (
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
-type queryFunction func(filter filter) (*sql.Rows, error)
-
-type filter struct {
-	Search string `json:"name"`
-	State  int    `json:"state"`
-}
+// Todo: add LIMIT OFFSET
 
 type city struct {
 	ID    int    `json:"id"`
@@ -28,84 +22,70 @@ type response struct {
 	Rows []city `json:"rows"`
 }
 
-var (
-	queryByState        *sql.Stmt
-	queryByName         *sql.Stmt
-	queryByNameAndState *sql.Stmt
-	queryAny            *sql.Stmt
-)
+type stateClause struct {
+	state int
+}
+
+func (s stateClause) Term() string {
+	return "state = ?"
+}
+
+func (s stateClause) Parms() []interface{} {
+	return []interface{}{s.state}
+}
 
 // HandleRoute responds to /city queries
 func HandleRoute(w http.ResponseWriter, r *http.Request) {
-	filter := createFilter(r)
-	query := pickQueryFunction(filter)
-	res, err := responseForQuery(query, filter)
+	query := buildQuery(r)
+	res, err := responseForQuery(query)
 	if err != nil {
+		log.Printf("%v", err)
 		http.Error(w, "Internal error", http.StatusInternalServerError)
 		return
 	}
 	json.NewEncoder(w).Encode(res)
 }
 
-func init() {
-	const (
-		queryComponentBase           = "SELECT id, name, state FROM city"
-		queryComponentConditionBegin = " WHERE "
-		queryComponentConditionAnd   = " AND "
-		queryComponentFilterState    = "state=$"
-		queryComponentFilterName     = "name ILIKE '%' || $1 || '%'"
-		queryComponentLimit          = " LIMIT 12"
-	)
-
-	query := fmt.Sprintf(
-		"%v%v%v%v%v",
-		queryComponentBase,
-		queryComponentConditionBegin,
-		queryComponentFilterState,
-		"1",
-		queryComponentLimit,
-	)
-	queryByState = statementForQuery(query)
-
-	query = fmt.Sprintf(
-		"%v%v%v%v",
-		queryComponentBase,
-		queryComponentConditionBegin,
-		queryComponentFilterName,
-		queryComponentLimit,
-	)
-	queryByName = statementForQuery(query)
-
-	query = fmt.Sprintf(
-		"%v%v%v%v%v%v%v",
-		queryComponentBase,
-		queryComponentConditionBegin,
-		queryComponentFilterName,
-		queryComponentConditionAnd,
-		queryComponentFilterState,
-		"2",
-		queryComponentLimit,
-	)
-	queryByNameAndState = statementForQuery(query)
-
-	query = fmt.Sprintf(
-		"%v%v",
-		queryComponentBase,
-		queryComponentLimit,
-	)
-	queryAny = statementForQuery(query)
-}
-
-func statementForQuery(query string) *sql.Stmt {
-	stmt, err := shared.Db.Prepare(query)
-	if err != nil {
-		log.Fatal(err)
+func buildQuery(r *http.Request) shared.Query {
+	w := shared.NewWhereClause(shared.CombinatorAnd)
+	addStateClause(r, &w)
+	addSearchClause(r, &w)
+	q := shared.NewQuery()
+	rows := []string{
+		"id",
+		"name",
+		"state",
 	}
-	return stmt
+	base := shared.NewSelectClause("city", rows)
+	q.AddClause(base)
+	q.AddClause(w)
+	return q
 }
 
-func responseForQuery(query queryFunction, filter filter) (response, error) {
-	rows, err := query(filter)
+func addStateClause(r *http.Request, w *shared.WhereClause) {
+	strings, ok := r.URL.Query()["state"]
+	if ok && len(strings) == 1 {
+		string := strings[0]
+		integer, err := strconv.Atoi(string)
+		if err == nil {
+			clause := stateClause{integer}
+			w.AddClause(clause)
+		}
+	}
+}
+
+func addSearchClause(r *http.Request, w *shared.WhereClause) {
+	strings, ok := r.URL.Query()["search"]
+	if ok && len(strings) == 1 {
+		clause := shared.NewTextSearchClause("name", strings[0])
+		w.AddClause(clause)
+	}
+}
+
+func responseForQuery(query shared.Query) (response, error) {
+	queryString := query.String()
+	log.Printf(queryString)
+	rows, err := shared.Db.Query(queryString, query.Parms()...)
 	if err != nil {
 		return response{}, err
 	}
@@ -141,63 +121,4 @@ func rowsToResponse(rows *sql.Rows) (response, error) {
 		res.Rows = append(res.Rows, row)
 	}
 	return res, nil
-}
-
-func pickQueryFunction(filter filter) queryFunction {
-	closure := queryCityFilterNone
-	filterByState := filter.State > -1
-	filterByName := len(filter.Search) > 0
-	if filterByState {
-		if filterByName {
-			closure = queryCityFilterBoth
-		} else {
-			closure = queryCityFilterState
-		}
-	} else {
-		if filterByName {
-			closure = queryCityFilterName
-		}
-	}
-	return closure
-}
-
-func createFilter(r *http.Request) filter {
-	filter := filter{"", -1}
-	populateStateFilter(r, &filter)
-	populateSearchFilter(r, &filter)
-	return filter
-}
-
-func populateStateFilter(r *http.Request, filter *filter) {
-	strings, ok := r.URL.Query()["state"]
-	if ok && len(strings) == 1 {
-		string := strings[0]
-		integer, err := strconv.Atoi(string)
-		if err == nil {
-			filter.State = integer
-		}
-	}
-}
-
-func populateSearchFilter(r *http.Request, filter *filter) {
-	strings, ok := r.URL.Query()["search"]
-	if ok && len(strings) == 1 {
-		filter.Search = strings[0]
-	}
-}
-
-func queryCityFilterState(filter filter) (*sql.Rows, error) {
-	return queryByState.Query(filter.State)
-}
-
-func queryCityFilterName(filter filter) (*sql.Rows, error) {
-	return queryByName.Query(filter.Search)
-}
-
-func queryCityFilterBoth(filter filter) (*sql.Rows, error) {
-	return queryByNameAndState.Query(filter.Search, filter.State)
-}
-
-func queryCityFilterNone(filter filter) (*sql.Rows, error) {
-	return queryAny.Query()
 }

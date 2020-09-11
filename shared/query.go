@@ -5,19 +5,25 @@ import (
 	"strings"
 )
 
-// Todo: struct to cache query permutations as prepared statements
-// Todo: replace `?` with `$1`, `$2`, etc
+// TODO: don't include LIMIT OFFSET if it has no contents
 
-// RawQuery is a generator for SQL query strings
-type RawQuery struct {
-	subqueries []Subquerier
+// NewQuery creates an empty query
+func NewQuery() Query {
+	return Query{
+		subqueries: []Clauser{},
+	}
 }
 
-// Build constructs the SQL query string
-func (q *RawQuery) Build() string {
+// Query is a SQL query
+type Query struct {
+	subqueries []Clauser
+}
+
+// String constructs the SQL query string
+func (q Query) String() string {
 	subqueries := make([]string, 0, len(q.subqueries))
 	for _, subquery := range q.subqueries {
-		subqueries = append(subqueries, subquery.Subquery())
+		subqueries = append(subqueries, subquery.Term())
 	}
 	query := strings.Join(subqueries, " ")
 	for i := range q.subqueries {
@@ -27,26 +33,49 @@ func (q *RawQuery) Build() string {
 	return query
 }
 
-// Select is the SQL SELECT FROM statement
-type Select struct {
+// Parms is the parameters for the query
+func (q Query) Parms() []interface{} {
+	parms := make([]interface{}, 0)
+	for _, query := range q.subqueries {
+		for _, clause := range query.Parms() {
+			parms = append(parms, clause)
+		}
+	}
+	return parms
+}
+
+// AddClause adds a new clause to the query
+func (q *Query) AddClause(s Clauser) {
+	q.subqueries = append(q.subqueries, s)
+}
+
+type selectClause struct {
 	table string
 	rows  []string
 }
 
-// Subquery returns a SQL snippet
-func (s Select) Subquery() string {
+// NewSelectClause creates a SELECT FROM clause
+func NewSelectClause(table string, rows []string) Clauser {
+	return selectClause{
+		table: table,
+		rows:  rows,
+	}
+}
+
+// Term returns a SQL snippet
+func (s selectClause) Term() string {
 	rows := strings.Join(s.rows, ", ")
 	return fmt.Sprintf("SELECT %s FROM %s", rows, s.table)
 }
 
 // Parms returns the SQL query placeholder contents
-func (s Select) Parms() []interface{} {
+func (s selectClause) Parms() []interface{} {
 	return []interface{}{}
 }
 
-// Subquerier is an interface for SQL query WHERE terms
-type Subquerier interface {
-	Subquery() string
+// Clauser is an interface for SQL query WHERE terms
+type Clauser interface {
+	Term() string
 	Parms() []interface{}
 }
 
@@ -56,8 +85,8 @@ type Page struct {
 	offset int
 }
 
-// Subquery returns a SQL snippet
-func (p Page) Subquery() string {
+// Term returns a SQL snippet
+func (p Page) Term() string {
 	return "LIMIT ? OFFSET ?"
 }
 
@@ -79,17 +108,33 @@ const (
 	CombinatorOr
 )
 
-// Where is a SQL where clause
-type Where struct {
+// WhereClause is a SQL where clause
+type WhereClause struct {
 	combinator Combinator
-	subqueries []Subquerier
+	clauses    []Clauser
 }
 
-// Subquery returns a SQL snippet
-func (w Where) Subquery() string {
-	subqueries := make([]string, 0, len(w.subqueries))
-	for _, subquery := range w.subqueries {
-		subqueries = append(subqueries, subquery.Subquery())
+// NewWhereClause creates a new WHERE clause
+func NewWhereClause(combinator Combinator) WhereClause {
+	return WhereClause{
+		combinator: combinator,
+		clauses:    []Clauser{},
+	}
+}
+
+// AddClause adds a new clause to the WHERE statement
+func (w *WhereClause) AddClause(clause Clauser) {
+	w.clauses = append(w.clauses, clause)
+}
+
+// Term returns a SQL snippet
+func (w WhereClause) Term() string {
+	if len(w.clauses) == 0 {
+		return ""
+	}
+	subqueries := make([]string, 0, len(w.clauses))
+	for _, subquery := range w.clauses {
+		subqueries = append(subqueries, subquery.Term())
 	}
 	combinator := [...]string{"AND", "OR"}[w.combinator]
 	combinator = fmt.Sprintf(" %s ", combinator)
@@ -98,9 +143,9 @@ func (w Where) Subquery() string {
 }
 
 // Parms returns the SQL query placeholder contents
-func (w Where) Parms() []interface{} {
+func (w WhereClause) Parms() []interface{} {
 	parms := make([]interface{}, 0)
-	for _, subquery := range w.subqueries {
+	for _, subquery := range w.clauses {
 		for _, parm := range subquery.Parms() {
 			parms = append(parms, parm)
 		}
@@ -108,19 +153,26 @@ func (w Where) Parms() []interface{} {
 	return parms
 }
 
-// SearchFilter is a case insensitive text search filter
-type SearchFilter struct {
+type textSearchClause struct {
 	column string
 	term   string
 }
 
-// Subquery returns a SQL snippet
-func (s SearchFilter) Subquery() string {
+// NewTextSearchClause creates a case insensitive text search term
+func NewTextSearchClause(column, term string) Clauser {
+	return textSearchClause{
+		column: column,
+		term:   term,
+	}
+}
+
+// Term returns a SQL snippet
+func (s textSearchClause) Term() string {
 	return fmt.Sprintf("%s ILIKE '%%' || ? || '%%'", s.column)
 }
 
 // Parms returns the SQL query placeholder contents
-func (s SearchFilter) Parms() []interface{} {
+func (s textSearchClause) Parms() []interface{} {
 	return []interface{}{
 		s.term,
 	}
