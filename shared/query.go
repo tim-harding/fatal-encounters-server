@@ -39,7 +39,7 @@ func (q *query) String() string {
 		}
 	}
 	query := strings.Join(subqueries, " ")
-	for i := range q.subqueries {
+	for i := range q.Parameters() {
 		placeholder := fmt.Sprintf("$%d", i+1)
 		query = strings.Replace(query, "?", placeholder, 1)
 	}

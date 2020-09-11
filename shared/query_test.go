@@ -32,22 +32,3 @@ func TestPagination(t *testing.T) {
 	const wanted = "SELECT a, b FROM test LIMIT $1 OFFSET $2"
 	try(query, wanted, t)
 }
-
-func TestTextSearchQuery(t *testing.T) {
-	search := NewTextSearchClause("column", "find")
-	where := NewWhereClause(CombinatorAnd)
-	where.AddClause(search)
-	query := baseQuery()
-	query.AddClause(where)
-	const wanted = "SELECT a, b FROM test WHERE column ILIKE '%' || $1 || '%'"
-	try(query, wanted, t)
-}
-
-func TestEmptyWhereClauseDoesNothing(t *testing.T) {
-	where := NewWhereClause(CombinatorAnd)
-	query := baseQuery()
-	query.AddClause(where)
-	// Todo: trim query?
-	const wanted = "SELECT a, b FROM test"
-	try(query, wanted, t)
-}
