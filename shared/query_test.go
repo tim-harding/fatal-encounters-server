@@ -9,6 +9,12 @@ func base() selectClause {
 	}
 }
 
+func baseQuery() Query {
+	query := NewQuery()
+	query.AddClause(base())
+	return query
+}
+
 func try(query Query, wanted string, t *testing.T) {
 	sql := query.String()
 	if sql != wanted {
@@ -17,59 +23,33 @@ func try(query Query, wanted string, t *testing.T) {
 }
 
 func TestBuildsBasicQuery(t *testing.T) {
-	query := Query{
-		subqueries: []Clauser{
-			base(),
-		},
-	}
+	query := baseQuery()
 	const wanted = "SELECT a, b FROM test"
 	try(query, wanted, t)
 }
 
 func TestPagination(t *testing.T) {
-	page := Page{
-		limit:  12,
-		offset: 1,
-	}
-	query := Query{
-		subqueries: []Clauser{
-			base(),
-			page,
-		},
-	}
+	page := NewPageClause(12, 1)
+	query := baseQuery()
+	query.AddClause(page)
 	const wanted = "SELECT a, b FROM test LIMIT $1 OFFSET $2"
 	try(query, wanted, t)
 }
 
 func TestTextSearchQuery(t *testing.T) {
-	search := textSearchClause{
-		column: "column",
-		term:   "find",
-	}
-	where := WhereClause{
-		combinator: CombinatorAnd,
-		clauses: []Clauser{
-			search,
-		},
-	}
-	query := Query{
-		subqueries: []Clauser{
-			base(),
-			where,
-		},
-	}
+	search := NewTextSearchClause("column", "find")
+	where := NewWhereClause(CombinatorAnd)
+	where.AddClause(search)
+	query := baseQuery()
+	query.AddClause(where)
 	const wanted = "SELECT a, b FROM test WHERE column ILIKE '%' || $1 || '%'"
 	try(query, wanted, t)
 }
 
 func TestEmptyWhereClauseDoesNothing(t *testing.T) {
 	where := NewWhereClause(CombinatorAnd)
-	query := Query{
-		subqueries: []Clauser{
-			base(),
-			where,
-		},
-	}
+	query := baseQuery()
+	query.AddClause(where)
 	// Todo: trim query?
 	const wanted = "SELECT a, b FROM test "
 	try(query, wanted, t)
