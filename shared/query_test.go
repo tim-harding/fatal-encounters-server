@@ -2,11 +2,8 @@ package shared
 
 import "testing"
 
-func base() selectClause {
-	return selectClause{
-		table: "test",
-		rows:  []string{"a", "b"},
-	}
+func base() Clauser {
+	return NewSelectClause("test", []string{"a", "b"})
 }
 
 func baseQuery() Subclauser {

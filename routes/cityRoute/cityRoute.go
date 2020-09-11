@@ -44,7 +44,7 @@ func HandleRoute(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(res)
 }
 
-func buildQuery(r *http.Request) shared.Query {
+func buildQuery(r *http.Request) shared.Clauser {
 	rows := []string{
 		"id",
 		"name",
@@ -54,14 +54,24 @@ func buildQuery(r *http.Request) shared.Query {
 	base := shared.NewSelectClause("city", rows)
 	q.AddClause(base)
 	w := shared.NewWhereClause(shared.CombinatorAnd)
-	addStateClause(r, &w)
-	addSearchClause(r, &w)
+	addClause(w, r, makeStateClause)
+	addClause(w, r, makeSearchClause)
 	q.AddClause(w)
-	addLimitClause(r, &q)
+	addClause(q, r, makeLimitClause)
 	return q
 }
 
-func addLimitClause(r *http.Request, w *shared.Query) {
+type maybeClause func(r *http.Request) shared.Clauser
+
+func addClause(w shared.Subclauser, r *http.Request, clauseFunc maybeClause) {
+	clause := clauseFunc(r)
+	if clause != nil {
+		w.AddClause(clause)
+	}
+}
+
+// Todo: abstract integer parsing
+func makeLimitClause(r *http.Request) shared.Clauser {
 	limit := 1
 	strings, ok := r.URL.Query()["count"]
 	if ok && len(strings) == 1 {
@@ -72,32 +82,32 @@ func addLimitClause(r *http.Request, w *shared.Query) {
 		}
 	}
 	clause := shared.NewPageClause(limit, 0)
-	w.AddClause(clause)
+	return clause
 }
 
-func addStateClause(r *http.Request, w *shared.WhereClause) {
+func makeStateClause(r *http.Request) shared.Clauser {
 	strings, ok := r.URL.Query()["state"]
 	if ok && len(strings) == 1 {
 		string := strings[0]
 		integer, err := strconv.Atoi(string)
 		if err == nil {
-			clause := stateClause{integer}
-			w.AddClause(clause)
+			return stateClause{integer}
 		}
 	}
+	return nil
 }
 
-func addSearchClause(r *http.Request, w *shared.WhereClause) {
+func makeSearchClause(r *http.Request) shared.Clauser {
 	strings, ok := r.URL.Query()["search"]
 	if ok && len(strings) == 1 {
-		clause := shared.NewTextSearchClause("name", strings[0])
-		w.AddClause(clause)
+		return shared.NewTextSearchClause("name", strings[0])
 	}
+	return nil
 }
 
-func responseForQuery(query shared.Query) (response, error) {
+func responseForQuery(query shared.Clauser) (response, error) {
 	queryString := query.String()
-	log.Printf(queryString)
+	log.Printf("Database query: %s", queryString)
 	rows, err := shared.Db.Query(queryString, query.Parameters()...)
 	if err != nil {
 		return response{}, err
