@@ -21,7 +21,7 @@ func (q *RawQuery) Build() string {
 	}
 	query := strings.Join(subqueries, " ")
 	for i := range q.subqueries {
-		placeholder := fmt.Sprintf("$%d", i)
+		placeholder := fmt.Sprintf("$%d", i+1)
 		query = strings.Replace(query, "?", placeholder, 1)
 	}
 	return query
