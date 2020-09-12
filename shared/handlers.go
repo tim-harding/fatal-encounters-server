@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/tim-harding/fatal-encounters-server/query"
 )
@@ -96,4 +97,22 @@ func SearchClause(r *http.Request) query.Clauser {
 		return query.NewTextSearchClause("name", strings[0])
 	}
 	return nil
+}
+
+// InClause creates an IN clause from the request
+func InClause(r *http.Request, column string) query.Clauser {
+	mask := make([]int, 0)
+	queryStrings, ok := r.URL.Query()[column]
+	if ok {
+		for _, queryString := range queryStrings {
+			parts := strings.Split(queryString, ",")
+			for _, part := range parts {
+				integer, err := strconv.Atoi(part)
+				if err == nil {
+					mask = append(mask, integer)
+				}
+			}
+		}
+	}
+	return query.NewInClause(column, mask)
 }
