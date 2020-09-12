@@ -3,7 +3,6 @@ package incidentroute
 import (
 	"database/sql"
 	"net/http"
-	"strconv"
 
 	"github.com/tim-harding/fatal-encounters-server/query"
 	"github.com/tim-harding/fatal-encounters-server/shared"
@@ -47,23 +46,21 @@ func selectClause() query.Clauser {
 
 func whereClause(r *http.Request) query.Clauser {
 	w := query.NewWhereClause(query.CombinatorAnd)
-	w.AddClause(stateClause(r))
+	enumTables := []string{
+		"agency",
+		"cause",
+		"city",
+		"county",
+		"race",
+		"state",
+		"use_of_force",
+	}
+	for _, table := range enumTables {
+		clause := shared.InClause(r, table)
+		w.AddClause(clause)
+	}
 	w.AddClause(shared.SearchClause(r))
 	return w
-}
-
-func stateClause(r *http.Request) query.Clauser {
-	states := make([]int, 0)
-	strings, ok := r.URL.Query()["state"]
-	if ok {
-		for _, string := range strings {
-			integer, err := strconv.Atoi(string)
-			if err == nil {
-				states = append(states, integer)
-			}
-		}
-	}
-	return query.NewInClause("state", states)
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {
