@@ -31,27 +31,20 @@ type listingRow struct {
 	ImageURL *string   `json:"imageUrl"`
 }
 
-// Todo: parsing enum results
-
 type detailRow struct {
 	idRow
 	IsMale      *bool   `json:"isMale"`
 	Zipcode     *int    `json:"zipcode"`
-	Race        *enum   `json:"race"`
-	County      *enum   `json:"county"`
-	Agency      *enum   `json:"agency"`
-	Cause       enum    `json:"cause"`
-	UseOfForce  enum    `json:"useOfForce"`
-	City        *enum   `json:"city"`
+	Race        *int    `json:"race"`
+	County      *int    `json:"county"`
+	Agency      *int    `json:"agency"`
+	Cause       int     `json:"cause"`
+	UseOfForce  int     `json:"useOfForce"`
+	City        *int    `json:"city"`
 	Address     *string `json:"address"`
 	Description string  `json:"description"`
 	ArticleURL  *string `json:"articleUrl"`
 	VideoURL    *string `json:"videoUrl"`
-}
-
-type enum struct {
-	idRow
-	Name string `json:"name"`
 }
 
 type rowKind int
@@ -267,6 +260,7 @@ func translateListingRow(rows *sql.Rows) (interface{}, error) {
 func translateDetailRow(rows *sql.Rows) (interface{}, error) {
 	row := detailRow{}
 	err := rows.Scan(
+		&row.ID,
 		&row.IsMale,
 		&row.Zipcode,
 		&row.Race,
