@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/tim-harding/fatal-encounters-server/query"
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
@@ -19,8 +20,8 @@ func HandleRoute(w http.ResponseWriter, r *http.Request) {
 	shared.HandleRoute(w, r, buildQuery, translateRow)
 }
 
-func buildQuery(r *http.Request) shared.Clauser {
-	q := shared.NewQuery()
+func buildQuery(r *http.Request) query.Clauser {
+	q := query.NewQuery()
 	q.AddClause(selectClause())
 	q.AddClause(whereClause(r))
 	q.AddClause(orderClause())
@@ -28,23 +29,23 @@ func buildQuery(r *http.Request) shared.Clauser {
 	return q
 }
 
-func selectClause() shared.Clauser {
+func selectClause() query.Clauser {
 	desiredRowNames := []string{
 		"id",
 		"name",
 		"state",
 	}
-	return shared.NewSelectClause("city", desiredRowNames)
+	return query.NewSelectClause("city", desiredRowNames)
 }
 
-func whereClause(r *http.Request) shared.Clauser {
-	w := shared.NewWhereClause(shared.CombinatorAnd)
+func whereClause(r *http.Request) query.Clauser {
+	w := query.NewWhereClause(query.CombinatorAnd)
 	w.AddClause(stateClause(r))
 	w.AddClause(shared.SearchClause(r))
 	return w
 }
 
-func stateClause(r *http.Request) shared.Clauser {
+func stateClause(r *http.Request) query.Clauser {
 	states := make([]int, 0)
 	strings, ok := r.URL.Query()["state"]
 	if ok {
@@ -55,13 +56,13 @@ func stateClause(r *http.Request) shared.Clauser {
 			}
 		}
 	}
-	return shared.NewInClause("state", states)
+	return query.NewInClause("state", states)
 }
 
-func orderClause() shared.Clauser {
-	order := shared.OrderingAscending
+func orderClause() query.Clauser {
+	order := query.OrderingAscending
 	columns := []string{"name", "state"}
-	return shared.NewOrderClause(order, columns)
+	return query.NewOrderClause(order, columns)
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {

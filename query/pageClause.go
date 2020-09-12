@@ -1,4 +1,4 @@
-package shared
+package query
 
 type pageClause struct {
 	limit  int

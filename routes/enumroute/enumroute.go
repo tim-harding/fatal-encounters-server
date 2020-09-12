@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 
+	"github.com/tim-harding/fatal-encounters-server/query"
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
@@ -22,8 +23,8 @@ func HandleRouteFactory(tableName string) http.HandlerFunc {
 }
 
 func queryBuilderFactory(tableName string) shared.QueryBuilderFunc {
-	return func(r *http.Request) shared.Clauser {
-		q := shared.NewQuery()
+	return func(r *http.Request) query.Clauser {
+		q := query.NewQuery()
 		q.AddClause(selectClause(tableName))
 		q.AddClause(whereClause(r))
 		q.AddClause(orderClause())
@@ -32,24 +33,24 @@ func queryBuilderFactory(tableName string) shared.QueryBuilderFunc {
 	}
 }
 
-func selectClause(tableName string) shared.Clauser {
+func selectClause(tableName string) query.Clauser {
 	desiredRowNames := []string{
 		"id",
 		"name",
 	}
-	return shared.NewSelectClause(tableName, desiredRowNames)
+	return query.NewSelectClause(tableName, desiredRowNames)
 }
 
-func whereClause(r *http.Request) shared.Clauser {
-	w := shared.NewWhereClause(shared.CombinatorAnd)
+func whereClause(r *http.Request) query.Clauser {
+	w := query.NewWhereClause(query.CombinatorAnd)
 	w.AddClause(shared.SearchClause(r))
 	return w
 }
 
-func orderClause() shared.Clauser {
-	order := shared.OrderingAscending
+func orderClause() query.Clauser {
+	order := query.OrderingAscending
 	columns := []string{"name"}
-	return shared.NewOrderClause(order, columns)
+	return query.NewOrderClause(order, columns)
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {
