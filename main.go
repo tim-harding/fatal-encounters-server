@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/tim-harding/fatal-encounters-server/routes/cityroute"
 	"github.com/tim-harding/fatal-encounters-server/routes/enumroute"
+	"github.com/tim-harding/fatal-encounters-server/routes/incidentroute"
 	"github.com/tim-harding/fatal-encounters-server/routes/stateroute"
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
@@ -33,6 +34,9 @@ func main() {
 		route := fmt.Sprintf("/%s", table)
 		r.Get(route, enumroute.HandleRouteFactory(table))
 	}
+	r.Route("/incident", func(r chi.Router) {
+		r.Get("/basics", incidentroute.HandleRouteMapping)
+	})
 	err := http.ListenAndServe(":3000", r)
 	if err != nil {
 		log.Fatal(err)
