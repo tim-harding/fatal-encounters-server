@@ -60,7 +60,18 @@ func whereClause(r *http.Request) query.Clauser {
 		w.AddClause(clause)
 	}
 	w.AddClause(shared.SearchClause(r))
+	w.AddClause(ageClause(r, "ageMin", -1, false))
+	w.AddClause(ageClause(r, "ageMax", 150, true))
 	return w
+}
+
+func ageClause(r *http.Request, key string, defaultValue int, isMax bool) query.Clauser {
+	value := shared.QueryInt(r, key, defaultValue)
+	comparator := query.ComparatorGreaterEqual
+	if isMax {
+		comparator = query.ComparatorLesserEqual
+	}
+	return query.NewCompareClause(comparator, "age", value)
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {

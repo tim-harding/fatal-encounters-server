@@ -75,14 +75,15 @@ func rowsToResponse(rows *sql.Rows, rowTranslator RowTranslatorFunc) (interface{
 
 // LimitClause creates a limit clause from the request
 func LimitClause(r *http.Request) query.Clauser {
-	limit := queryInt(r, "count", 6)
-	page := queryInt(r, "page", 0)
+	limit := QueryInt(r, "count", 6)
+	page := QueryInt(r, "page", 0)
 	offset := page * limit
 	clause := query.NewPageClause(limit, offset)
 	return clause
 }
 
-func queryInt(r *http.Request, key string, defaultValue int) int {
+// QueryInt gets an integer value from the request query string
+func QueryInt(r *http.Request, key string, defaultValue int) int {
 	value := defaultValue
 	querystrings, ok := r.URL.Query()[key]
 	if ok && len(querystrings) > 0 {
