@@ -7,8 +7,11 @@ import (
 	"net/http"
 )
 
-type queryBuilderFunc func(r *http.Request) Clauser
-type rowTranslatorFunc func(rows *sql.Rows) (interface{}, error)
+// QueryBuilderFunc creates a query for the HTTP request
+type QueryBuilderFunc func(r *http.Request) Clauser
+
+// RowTranslatorFunc creates a row of JSON response from a database row
+type RowTranslatorFunc func(rows *sql.Rows) (interface{}, error)
 
 type response struct {
 	Rows []interface{} `json:"rows"`
@@ -19,7 +22,7 @@ func newResponse() response {
 }
 
 // HandleRoute responds to queries
-func HandleRoute(w http.ResponseWriter, r *http.Request, queryBuilder queryBuilderFunc, rowTranslator rowTranslatorFunc) {
+func HandleRoute(w http.ResponseWriter, r *http.Request, queryBuilder QueryBuilderFunc, rowTranslator RowTranslatorFunc) {
 	res, err := buildResponse(r, queryBuilder, rowTranslator)
 	if err != nil {
 		log.Printf("%v", err)
@@ -29,7 +32,7 @@ func HandleRoute(w http.ResponseWriter, r *http.Request, queryBuilder queryBuild
 	json.NewEncoder(w).Encode(res)
 }
 
-func buildResponse(r *http.Request, queryBuilder queryBuilderFunc, rowTranslator rowTranslatorFunc) (interface{}, error) {
+func buildResponse(r *http.Request, queryBuilder QueryBuilderFunc, rowTranslator RowTranslatorFunc) (interface{}, error) {
 	query := queryBuilder(r)
 	queryString := query.String()
 	log.Printf("Database query: %s", queryString)
@@ -54,7 +57,7 @@ func buildResponse(r *http.Request, queryBuilder queryBuilderFunc, rowTranslator
 	return res, nil
 }
 
-func rowsToResponse(rows *sql.Rows, rowTranslator rowTranslatorFunc) (interface{}, error) {
+func rowsToResponse(rows *sql.Rows, rowTranslator RowTranslatorFunc) (interface{}, error) {
 	res := newResponse()
 	for rows.Next() {
 		row, err := rowTranslator(rows)
