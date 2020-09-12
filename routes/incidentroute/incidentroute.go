@@ -62,6 +62,7 @@ func whereClause(r *http.Request) query.Clauser {
 	w.AddClause(shared.SearchClause(r))
 	w.AddClause(ageClause(r, "ageMin", query.ComparatorGreaterEqual))
 	w.AddClause(ageClause(r, "ageMax", query.ComparatorLesserEqual))
+	w.AddClause(genderMaskClause(r))
 	return w
 }
 
@@ -71,6 +72,25 @@ func ageClause(r *http.Request, key string, comparator query.Comparator) query.C
 		return nil
 	}
 	return query.NewCompareClause(comparator, "age", value)
+}
+
+func genderMaskClause(r *http.Request) query.Clauser {
+	querystrings, ok := r.URL.Query()["gender"]
+	if ok && len(querystrings) > 0 {
+		var male bool
+		switch querystrings[0] {
+		case "male":
+			male = true
+			break
+		case "female":
+			male = false
+			break
+		default:
+			return nil
+		}
+		return query.NewCompareClause(query.ComparatorEqual, "is_male", male)
+	}
+	return nil
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {
