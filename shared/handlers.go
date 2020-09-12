@@ -73,27 +73,32 @@ func rowsToResponse(rows *sql.Rows, rowTranslator RowTranslatorFunc) (interface{
 	return res, nil
 }
 
-// Todo: include offset
-
 // LimitClause creates a limit clause from the request
 func LimitClause(r *http.Request) query.Clauser {
-	limit := 1
-	strings, ok := r.URL.Query()["count"]
-	if ok && len(strings) == 1 {
-		string := strings[0]
-		integer, err := strconv.Atoi(string)
+	limit := queryInt(r, "count", 6)
+	page := queryInt(r, "page", 0)
+	offset := page * limit
+	clause := query.NewPageClause(limit, offset)
+	return clause
+}
+
+func queryInt(r *http.Request, key string, defaultValue int) int {
+	value := defaultValue
+	querystrings, ok := r.URL.Query()[key]
+	if ok && len(querystrings) > 0 {
+		querystring := querystrings[0]
+		integer, err := strconv.Atoi(querystring)
 		if err == nil {
-			limit = integer
+			value = integer
 		}
 	}
-	clause := query.NewPageClause(limit, 0)
-	return clause
+	return value
 }
 
 // SearchClause creates a text search clause based on the `name` column
 func SearchClause(r *http.Request) query.Clauser {
 	strings, ok := r.URL.Query()["search"]
-	if ok && len(strings) == 1 {
+	if ok && len(strings) > 0 {
 		return query.NewTextSearchClause("name", strings[0])
 	}
 	return nil
@@ -102,10 +107,10 @@ func SearchClause(r *http.Request) query.Clauser {
 // InClause creates an IN clause from the request
 func InClause(r *http.Request, column string) query.Clauser {
 	mask := make([]int, 0)
-	queryStrings, ok := r.URL.Query()[column]
-	if ok {
-		for _, queryString := range queryStrings {
-			parts := strings.Split(queryString, ",")
+	querystrings, ok := r.URL.Query()[column]
+	if ok && len(querystrings) > 0 {
+		for _, querystring := range querystrings {
+			parts := strings.Split(querystring, ",")
 			for _, part := range parts {
 				integer, err := strconv.Atoi(part)
 				if err == nil {
