@@ -74,7 +74,7 @@ func searchClauses(r *http.Request) []query.Clauser {
 		clauses := []query.Clauser{nameSearch}
 		if len(term) == 2 {
 			caps := strings.ToUpper(term)
-			shortnameSearch := query.NewEqualsClause("shortname", caps)
+			shortnameSearch := query.NewCompareClause(query.ComparatorEqual, "shortname", caps)
 			clauses = append(clauses, shortnameSearch)
 		}
 		return clauses
