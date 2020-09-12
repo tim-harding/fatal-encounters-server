@@ -23,8 +23,8 @@ func buildQuery(r *http.Request) shared.Clauser {
 	q := shared.NewQuery()
 	q.AddClause(selectClause())
 	q.AddClause(whereClause(r))
-	q.AddClause(limitClause(r))
 	q.AddClause(orderClause())
+	q.AddClause(shared.LimitClause(r))
 	return q
 }
 
@@ -40,22 +40,8 @@ func selectClause() shared.Clauser {
 func whereClause(r *http.Request) shared.Clauser {
 	w := shared.NewWhereClause(shared.CombinatorAnd)
 	w.AddClause(stateClause(r))
-	w.AddClause(searchClause(r))
+	w.AddClause(shared.SearchClause(r))
 	return w
-}
-
-func limitClause(r *http.Request) shared.Clauser {
-	limit := 1
-	strings, ok := r.URL.Query()["count"]
-	if ok && len(strings) == 1 {
-		string := strings[0]
-		integer, err := strconv.Atoi(string)
-		if err == nil {
-			limit = integer
-		}
-	}
-	clause := shared.NewPageClause(limit, 0)
-	return clause
 }
 
 func stateClause(r *http.Request) shared.Clauser {
@@ -72,17 +58,9 @@ func stateClause(r *http.Request) shared.Clauser {
 	return shared.NewInClause("state", states)
 }
 
-func searchClause(r *http.Request) shared.Clauser {
-	strings, ok := r.URL.Query()["search"]
-	if ok && len(strings) == 1 {
-		return shared.NewTextSearchClause("name", strings[0])
-	}
-	return nil
-}
-
 func orderClause() shared.Clauser {
 	order := shared.OrderingAscending
-	columns := []string{"state", "id"}
+	columns := []string{"name", "state"}
 	return shared.NewOrderClause(order, columns)
 }
 

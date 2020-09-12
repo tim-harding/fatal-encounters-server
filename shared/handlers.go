@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 // QueryBuilderFunc creates a query for the HTTP request
@@ -67,4 +68,31 @@ func rowsToResponse(rows *sql.Rows, rowTranslator RowTranslatorFunc) (interface{
 		res.Rows = append(res.Rows, row)
 	}
 	return res, nil
+}
+
+// Todo: include offset
+// Todo: Move query builders to a new package
+
+// LimitClause creates a limit clause from the request
+func LimitClause(r *http.Request) Clauser {
+	limit := 1
+	strings, ok := r.URL.Query()["count"]
+	if ok && len(strings) == 1 {
+		string := strings[0]
+		integer, err := strconv.Atoi(string)
+		if err == nil {
+			limit = integer
+		}
+	}
+	clause := NewPageClause(limit, 0)
+	return clause
+}
+
+// SearchClause creates a text search clause based on the `name` column
+func SearchClause(r *http.Request) Clauser {
+	strings, ok := r.URL.Query()["search"]
+	if ok && len(strings) == 1 {
+		return NewTextSearchClause("name", strings[0])
+	}
+	return nil
 }

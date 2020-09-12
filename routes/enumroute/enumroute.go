@@ -23,9 +23,33 @@ func HandleRouteFactory(tableName string) http.HandlerFunc {
 
 func queryBuilderFactory(tableName string) shared.QueryBuilderFunc {
 	return func(r *http.Request) shared.Clauser {
-		base := shared.NewSelectClause(tableName, []string{"id", "name"})
-		return base
+		q := shared.NewQuery()
+		q.AddClause(selectClause(tableName))
+		q.AddClause(whereClause(r))
+		q.AddClause(orderClause())
+		q.AddClause(shared.LimitClause(r))
+		return q
 	}
+}
+
+func selectClause(tableName string) shared.Clauser {
+	desiredRowNames := []string{
+		"id",
+		"name",
+	}
+	return shared.NewSelectClause(tableName, desiredRowNames)
+}
+
+func whereClause(r *http.Request) shared.Clauser {
+	w := shared.NewWhereClause(shared.CombinatorAnd)
+	w.AddClause(shared.SearchClause(r))
+	return w
+}
+
+func orderClause() shared.Clauser {
+	order := shared.OrderingAscending
+	columns := []string{"name"}
+	return shared.NewOrderClause(order, columns)
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {
