@@ -96,6 +96,19 @@ func QueryInt(r *http.Request, key string, defaultValue int) int {
 	return value
 }
 
+// MaybeQueryInt gets an integer value if available
+func MaybeQueryInt(r *http.Request, key string) (bool, int) {
+	querystrings, ok := r.URL.Query()[key]
+	if ok && len(querystrings) > 0 {
+		querystring := querystrings[0]
+		integer, err := strconv.Atoi(querystring)
+		if err == nil {
+			return true, integer
+		}
+	}
+	return false, -1
+}
+
 // SearchClause creates a text search clause based on the `name` column
 func SearchClause(r *http.Request) query.Clauser {
 	strings, ok := r.URL.Query()["search"]
