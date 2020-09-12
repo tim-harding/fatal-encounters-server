@@ -3,6 +3,7 @@ package incidentroute
 import (
 	"database/sql"
 	"net/http"
+	"time"
 
 	"github.com/tim-harding/fatal-encounters-server/query"
 	"github.com/tim-harding/fatal-encounters-server/shared"
@@ -63,6 +64,8 @@ func whereClause(r *http.Request) query.Clauser {
 	w.AddClause(ageClause(r, "ageMin", query.ComparatorGreaterEqual))
 	w.AddClause(ageClause(r, "ageMax", query.ComparatorLesserEqual))
 	w.AddClause(genderMaskClause(r))
+	w.AddClause(dateMaskClause(r, "dateMin", query.ComparatorGreaterEqual))
+	w.AddClause(dateMaskClause(r, "dateMax", query.ComparatorLesserEqual))
 	return w
 }
 
@@ -76,21 +79,33 @@ func ageClause(r *http.Request, key string, comparator query.Comparator) query.C
 
 func genderMaskClause(r *http.Request) query.Clauser {
 	querystrings, ok := r.URL.Query()["gender"]
-	if ok && len(querystrings) > 0 {
-		var male bool
-		switch querystrings[0] {
-		case "male":
-			male = true
-			break
-		case "female":
-			male = false
-			break
-		default:
-			return nil
-		}
-		return query.NewCompareClause(query.ComparatorEqual, "is_male", male)
+	if !ok || len(querystrings) < 1 {
+		return nil
 	}
-	return nil
+	var male bool
+	switch querystrings[0] {
+	case "male":
+		male = true
+		break
+	case "female":
+		male = false
+		break
+	default:
+		return nil
+	}
+	return query.NewCompareClause(query.ComparatorEqual, "is_male", male)
+}
+
+func dateMaskClause(r *http.Request, key string, comparator query.Comparator) query.Clauser {
+	querystrings, ok := r.URL.Query()[key]
+	if !ok || len(querystrings) < 1 {
+		return nil
+	}
+	t, err := time.Parse("2013-Feb-03", querystrings[0])
+	if err != nil {
+		return nil
+	}
+	return query.NewCompareClause(comparator, "date", t)
 }
 
 func translateRow(rows *sql.Rows) (interface{}, error) {

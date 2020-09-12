@@ -84,14 +84,13 @@ func LimitClause(r *http.Request) query.Clauser {
 
 // QueryInt gets an integer value from the request query string
 func QueryInt(r *http.Request, key string, defaultValue int) int {
-	value := defaultValue
 	querystrings, ok := r.URL.Query()[key]
-	if ok && len(querystrings) > 0 {
-		querystring := querystrings[0]
-		integer, err := strconv.Atoi(querystring)
-		if err == nil {
-			value = integer
-		}
+	if !ok || len(querystrings) < 1 {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(querystrings[0])
+	if err != nil {
+		return defaultValue
 	}
 	return value
 }
@@ -99,30 +98,30 @@ func QueryInt(r *http.Request, key string, defaultValue int) int {
 // MaybeQueryInt gets an integer value if available
 func MaybeQueryInt(r *http.Request, key string) (bool, int) {
 	querystrings, ok := r.URL.Query()[key]
-	if ok && len(querystrings) > 0 {
-		querystring := querystrings[0]
-		integer, err := strconv.Atoi(querystring)
-		if err == nil {
-			return true, integer
-		}
+	if !ok || len(querystrings) < 1 {
+		return false, -1
 	}
-	return false, -1
+	integer, err := strconv.Atoi(querystrings[0])
+	if err != nil {
+		return false, -1
+	}
+	return true, integer
 }
 
 // SearchClause creates a text search clause based on the `name` column
 func SearchClause(r *http.Request) query.Clauser {
 	strings, ok := r.URL.Query()["search"]
-	if ok && len(strings) > 0 {
-		return query.NewTextSearchClause("name", strings[0])
+	if !ok || len(strings) < 1 {
+		return nil
 	}
-	return nil
+	return query.NewTextSearchClause("name", strings[0])
 }
 
 // InClause creates an IN clause from the request
 func InClause(r *http.Request, column string) query.Clauser {
 	mask := make([]int, 0)
 	querystrings, ok := r.URL.Query()[column]
-	if ok && len(querystrings) > 0 {
+	if ok {
 		for _, querystring := range querystrings {
 			parts := strings.Split(querystring, ",")
 			for _, part := range parts {
