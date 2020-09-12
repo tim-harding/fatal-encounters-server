@@ -2,8 +2,6 @@ package cityroute
 
 import (
 	"database/sql"
-	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 
@@ -16,20 +14,9 @@ type city struct {
 	State int    `json:"state"`
 }
 
-type response struct {
-	Rows []city `json:"rows"`
-}
-
 // HandleRoute responds to /city queries
 func HandleRoute(w http.ResponseWriter, r *http.Request) {
-	query := buildQuery(r)
-	res, err := responseForQuery(query)
-	if err != nil {
-		log.Printf("%v", err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
-	}
-	json.NewEncoder(w).Encode(res)
+	shared.HandleRoute(w, r, buildQuery, translateRow)
 }
 
 func buildQuery(r *http.Request) shared.Clauser {
@@ -52,8 +39,8 @@ func selectClause() shared.Clauser {
 
 func whereClause(r *http.Request) shared.Clauser {
 	w := shared.NewWhereClause(shared.CombinatorAnd)
-	w.AddClause(makeStateClause(r))
-	w.AddClause(makeSearchClause(r))
+	w.AddClause(stateClause(r))
+	w.AddClause(searchClause(r))
 	return w
 }
 
@@ -71,7 +58,7 @@ func limitClause(r *http.Request) shared.Clauser {
 	return clause
 }
 
-func makeStateClause(r *http.Request) shared.Clauser {
+func stateClause(r *http.Request) shared.Clauser {
 	states := make([]int, 0)
 	strings, ok := r.URL.Query()["state"]
 	if ok {
@@ -85,7 +72,7 @@ func makeStateClause(r *http.Request) shared.Clauser {
 	return shared.NewInClause("state", states)
 }
 
-func makeSearchClause(r *http.Request) shared.Clauser {
+func searchClause(r *http.Request) shared.Clauser {
 	strings, ok := r.URL.Query()["search"]
 	if ok && len(strings) == 1 {
 		return shared.NewTextSearchClause("name", strings[0])
@@ -99,43 +86,15 @@ func orderClause() shared.Clauser {
 	return shared.NewOrderClause(order, columns)
 }
 
-func responseForQuery(query shared.Clauser) (response, error) {
-	queryString := query.String()
-	log.Printf("Database query: %s", queryString)
-	rows, err := shared.Db.Query(queryString, query.Parameters()...)
+func translateRow(rows *sql.Rows) (interface{}, error) {
+	var (
+		id    int
+		name  string
+		state int
+	)
+	err := rows.Scan(&id, &name, &state)
 	if err != nil {
-		return response{}, err
+		return nil, err
 	}
-
-	defer rows.Close()
-
-	res, err := rowsToResponse(rows)
-	if err != nil {
-		return response{}, err
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return response{}, err
-	}
-
-	return res, nil
-}
-
-func rowsToResponse(rows *sql.Rows) (response, error) {
-	res := response{make([]city, 0)}
-	for rows.Next() {
-		var (
-			id    int
-			name  string
-			state int
-		)
-		err := rows.Scan(&id, &name, &state)
-		if err != nil {
-			return response{}, err
-		}
-		row := city{id, name, state}
-		res.Rows = append(res.Rows, row)
-	}
-	return res, nil
+	return city{id, name, state}, nil
 }
