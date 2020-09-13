@@ -35,7 +35,8 @@ func main() {
 		r.Get(route, enumroute.HandleRouteFactory(table))
 	}
 	r.Route("/incident", func(r chi.Router) {
-		r.Get("/", incidentroute.HandleRouteMapping)
+		r.Get("/", incidentroute.HandleRouteBase)
+		r.Get("/{id}", incidentroute.HandleRouteID)
 	})
 	err := http.ListenAndServe(":3000", r)
 	if err != nil {

@@ -29,11 +29,22 @@ func newResponse() response {
 func HandleRoute(w http.ResponseWriter, r *http.Request, queryBuilder QueryBuilderFunc, rowTranslator RowTranslatorFunc) {
 	res, err := buildResponse(r, queryBuilder, rowTranslator)
 	if err != nil {
-		log.Printf("%v", err)
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		InternalError(w, err)
 		return
 	}
 	json.NewEncoder(w).Encode(res)
+}
+
+// InternalError sends an internal server error message
+func InternalError(w http.ResponseWriter, err error) {
+	Error(w, err, http.StatusInternalServerError)
+}
+
+// Error sends an error response
+func Error(w http.ResponseWriter, err error, code int) {
+	log.Printf("%v", err)
+	message := http.StatusText(code)
+	http.Error(w, message, code)
 }
 
 func buildResponse(r *http.Request, queryBuilder QueryBuilderFunc, rowTranslator RowTranslatorFunc) (interface{}, error) {

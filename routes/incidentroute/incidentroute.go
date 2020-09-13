@@ -3,8 +3,10 @@ package incidentroute
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 	"time"
 
+	"github.com/go-chi/chi"
 	"github.com/tim-harding/fatal-encounters-server/query"
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
@@ -46,6 +48,9 @@ type detailRow struct {
 	ArticleURL  *string `json:"articleUrl"`
 	VideoURL    *string `json:"videoUrl"`
 }
+
+// Todo: response sorting
+// Todo: id queries
 
 type rowKind int
 
@@ -105,10 +110,22 @@ var enumTables = []string{
 	"use_of_force",
 }
 
-// HandleRouteMapping delivers basic incident information
-func HandleRouteMapping(w http.ResponseWriter, r *http.Request) {
+// HandleRouteBase responds to /incident/ routes
+func HandleRouteBase(w http.ResponseWriter, r *http.Request) {
 	kind := pickRowKind(r)
-	buildQuery := buildQueryFactory(kind)
+	buildQuery := buildQueryBaseFactory(kind)
+	translateRow := translateFunc(kind)
+	shared.HandleRoute(w, r, buildQuery, translateRow)
+}
+
+// HandleRouteID responds to /incident/{id} routes
+func HandleRouteID(w http.ResponseWriter, r *http.Request) {
+	kind := pickRowKind(r)
+	buildQuery, err := buildQueryIDFactory(r, kind)
+	if err != nil {
+		shared.Error(w, err, http.StatusBadRequest)
+		return
+	}
 	translateRow := translateFunc(kind)
 	shared.HandleRoute(w, r, buildQuery, translateRow)
 }
@@ -131,14 +148,41 @@ func pickRowKind(r *http.Request) rowKind {
 	return rowKindID
 }
 
-func buildQueryFactory(kind rowKind) shared.QueryBuilderFunc {
+func buildQueryBaseFactory(kind rowKind) shared.QueryBuilderFunc {
 	return func(r *http.Request) query.Clauser {
 		q := query.NewQuery()
 		q.AddClause(selectClause(kind))
-		q.AddClause(whereClause(r))
+		q.AddClause(whereClauseBase(r))
 		q.AddClause(shared.LimitClause(r))
 		return q
 	}
+}
+
+func buildQueryIDFactory(r *http.Request, kind rowKind) (shared.QueryBuilderFunc, error) {
+	w, err := whereClauseID(r)
+	if err != nil {
+		return nil, err
+	}
+	builder := func(r *http.Request) query.Clauser {
+		q := query.NewQuery()
+		q.AddClause(selectClause(kind))
+		q.AddClause(w)
+		q.AddClause(shared.LimitClause(r))
+		return q
+	}
+	return builder, nil
+}
+
+func whereClauseID(r *http.Request) (query.Clauser, error) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return nil, err
+	}
+	match := query.NewCompareClause(query.ComparatorEqual, "id", id)
+	w := query.NewWhereClause(query.CombinatorAnd)
+	w.AddClause(match)
+	return w, nil
 }
 
 func selectClause(kind rowKind) query.Clauser {
@@ -159,7 +203,7 @@ func rowNames(kind rowKind) []string {
 	return rowNamesID
 }
 
-func whereClause(r *http.Request) query.Clauser {
+func whereClauseBase(r *http.Request) query.Clauser {
 	w := query.NewWhereClause(query.CombinatorAnd)
 	for _, table := range enumTables {
 		clause := shared.InClause(r, table)
