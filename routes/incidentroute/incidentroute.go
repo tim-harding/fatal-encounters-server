@@ -153,6 +153,7 @@ func buildQueryBaseFactory(kind rowKind) shared.QueryBuilderFunc {
 		q := query.NewQuery()
 		q.AddClause(selectClause(kind))
 		q.AddClause(whereClauseBase(r))
+		q.AddClause(query.NewOrderClause(query.OrderingAscending, []string{"id"}))
 		q.AddClause(shared.LimitClause(r))
 		return q
 	}
@@ -250,7 +251,7 @@ func dateMaskClause(r *http.Request, key string, comparator query.Comparator) qu
 	if !ok || len(querystrings) < 1 {
 		return nil
 	}
-	t, err := time.Parse("2013-Feb-03", querystrings[0])
+	t, err := time.Parse("2006-Jan-02", querystrings[0])
 	if err != nil {
 		return nil
 	}
