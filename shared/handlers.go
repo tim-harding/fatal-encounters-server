@@ -26,8 +26,8 @@ func newResponse() response {
 }
 
 // HandleRoute responds to queries
-func HandleRoute(w http.ResponseWriter, r *http.Request, queryBuilder QueryBuilderFunc, rowTranslator RowTranslatorFunc) {
-	res, err := buildResponse(r, queryBuilder, rowTranslator)
+func HandleRoute(w http.ResponseWriter, r *http.Request, query query.Clauser, rowTranslator RowTranslatorFunc) {
+	res, err := buildResponse(r, query, rowTranslator)
 	if err != nil {
 		InternalError(w, err)
 		return
@@ -47,8 +47,7 @@ func Error(w http.ResponseWriter, err error, code int) {
 	http.Error(w, message, code)
 }
 
-func buildResponse(r *http.Request, queryBuilder QueryBuilderFunc, rowTranslator RowTranslatorFunc) (interface{}, error) {
-	query := queryBuilder(r)
+func buildResponse(r *http.Request, query query.Clauser, rowTranslator RowTranslatorFunc) (interface{}, error) {
 	queryString := query.String()
 	log.Printf("Database query: %s", queryString)
 

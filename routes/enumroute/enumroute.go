@@ -16,21 +16,19 @@ type state struct {
 // HandleRouteFactory creates functions to respond to queries
 // on enumeration tables that include id and name
 func HandleRouteFactory(tableName string) http.HandlerFunc {
-	queryBuilder := queryBuilderFactory(tableName)
 	return func(w http.ResponseWriter, r *http.Request) {
-		shared.HandleRoute(w, r, queryBuilder, translateRow)
+		query := buildQuery(r, tableName)
+		shared.HandleRoute(w, r, query, translateRow)
 	}
 }
 
-func queryBuilderFactory(tableName string) shared.QueryBuilderFunc {
-	return func(r *http.Request) query.Clauser {
-		q := query.NewQuery()
-		q.AddClause(selectClause(tableName))
-		q.AddClause(whereClause(r))
-		q.AddClause(orderClause())
-		q.AddClause(shared.LimitClause(r))
-		return q
-	}
+func buildQuery(r *http.Request, tableName string) query.Clauser {
+	q := query.NewQuery()
+	q.AddClause(selectClause(tableName))
+	q.AddClause(whereClause(r))
+	q.AddClause(orderClause())
+	q.AddClause(shared.LimitClause(r))
+	return q
 }
 
 func selectClause(tableName string) query.Clauser {

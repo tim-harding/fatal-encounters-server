@@ -113,21 +113,21 @@ var enumTables = []string{
 // HandleRouteBase responds to /incident/ routes
 func HandleRouteBase(w http.ResponseWriter, r *http.Request) {
 	kind := pickRowKind(r)
-	buildQuery := buildQueryBaseFactory(kind)
+	query := buildBaseQuery(r, kind)
 	translateRow := translateFunc(kind)
-	shared.HandleRoute(w, r, buildQuery, translateRow)
+	shared.HandleRoute(w, r, query, translateRow)
 }
 
 // HandleRouteID responds to /incident/{id} routes
 func HandleRouteID(w http.ResponseWriter, r *http.Request) {
 	kind := pickRowKind(r)
-	buildQuery, err := buildQueryIDFactory(r, kind)
+	query, err := buildIDQuery(r, kind)
 	if err != nil {
 		shared.Error(w, err, http.StatusBadRequest)
 		return
 	}
 	translateRow := translateFunc(kind)
-	shared.HandleRoute(w, r, buildQuery, translateRow)
+	shared.HandleRoute(w, r, query, translateRow)
 }
 
 var querystringToRowKinds = map[string]rowKind{
@@ -149,30 +149,25 @@ func pickRowKind(r *http.Request) rowKind {
 	return kind
 }
 
-func buildQueryBaseFactory(kind rowKind) shared.QueryBuilderFunc {
-	return func(r *http.Request) query.Clauser {
-		q := query.NewQuery()
-		q.AddClause(selectClause(kind))
-		q.AddClause(whereClauseBase(r))
-		q.AddClause(orderClause(r))
-		q.AddClause(shared.LimitClause(r))
-		return q
-	}
+func buildBaseQuery(r *http.Request, kind rowKind) query.Clauser {
+	q := query.NewQuery()
+	q.AddClause(selectClause(kind))
+	q.AddClause(whereClauseBase(r))
+	q.AddClause(orderClause(r))
+	q.AddClause(shared.LimitClause(r))
+	return q
 }
 
-func buildQueryIDFactory(r *http.Request, kind rowKind) (shared.QueryBuilderFunc, error) {
+func buildIDQuery(r *http.Request, kind rowKind) (query.Clauser, error) {
 	w, err := whereClauseID(r)
 	if err != nil {
 		return nil, err
 	}
-	builder := func(r *http.Request) query.Clauser {
-		q := query.NewQuery()
-		q.AddClause(selectClause(kind))
-		q.AddClause(w)
-		q.AddClause(shared.LimitClause(r))
-		return q
-	}
-	return builder, nil
+	q := query.NewQuery()
+	q.AddClause(selectClause(kind))
+	q.AddClause(w)
+	q.AddClause(shared.LimitClause(r))
+	return q, nil
 }
 
 func whereClauseID(r *http.Request) (query.Clauser, error) {

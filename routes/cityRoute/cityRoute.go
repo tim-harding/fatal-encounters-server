@@ -16,7 +16,7 @@ type city struct {
 
 // HandleRoute responds to /city queries
 func HandleRoute(w http.ResponseWriter, r *http.Request) {
-	shared.HandleRoute(w, r, buildQuery, translateRow)
+	shared.HandleRoute(w, r, buildQuery(r), translateRow)
 }
 
 func buildQuery(r *http.Request) query.Clauser {
