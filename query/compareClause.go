@@ -5,25 +5,25 @@ import (
 )
 
 type compareClause struct {
-	comparator Comparator
+	comparison Comparison
 	column     string
 	match      interface{}
 }
 
-// Comparator is an enumeration of comparison options
-type Comparator int
+// Comparison is an enumeration of comparison options
+type Comparison int
 
 const (
-	// ComparatorEqual compares values using `=` operator
-	ComparatorEqual Comparator = iota
-	// ComparatorGreater compares values using `>` operator
-	ComparatorGreater
-	// ComparatorLesser compares values using `<` operator
-	ComparatorLesser
-	// ComparatorGreaterEqual compares values using `>=` operator
-	ComparatorGreaterEqual
-	// ComparatorLesserEqual compares values using `>=` operator
-	ComparatorLesserEqual
+	// ComparisonEqual compares values using `=` operator
+	ComparisonEqual Comparison = iota
+	// ComparisonGreater compares values using `>` operator
+	ComparisonGreater
+	// ComparisonLesser compares values using `<` operator
+	ComparisonLesser
+	// ComparisonGreaterEqual compares values using `>=` operator
+	ComparisonGreaterEqual
+	// ComparisonLesserEqual compares values using `>=` operator
+	ComparisonLesserEqual
 )
 
 var comparatorStrings = []string{
@@ -35,15 +35,15 @@ var comparatorStrings = []string{
 }
 
 // NewCompareClause creates a `column = ?` SQL clause
-func NewCompareClause(comparator Comparator, column string, match interface{}) Clauser {
-	return &compareClause{comparator, column, match}
+func NewCompareClause(comparison Comparison, column string, match interface{}) Clauser {
+	return &compareClause{comparison, column, match}
 }
 
-func (m *compareClause) String() string {
-	comparatorString := comparatorStrings[m.comparator]
-	return fmt.Sprintf("%s %s ?", m.column, comparatorString)
+func (c *compareClause) String() string {
+	comparisonString := comparatorStrings[c.comparison]
+	return fmt.Sprintf("%s %s ?", c.column, comparisonString)
 }
 
-func (m *compareClause) Parameters() []interface{} {
-	return []interface{}{m.match}
+func (c *compareClause) Parameters() []interface{} {
+	return []interface{}{c.match}
 }

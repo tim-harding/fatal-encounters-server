@@ -176,7 +176,7 @@ func whereClauseID(r *http.Request) (query.Clauser, error) {
 	if err != nil {
 		return nil, err
 	}
-	match := query.NewCompareClause(query.ComparatorEqual, "id", id)
+	match := query.NewCompareClause(query.ComparisonEqual, "id", id)
 	w := query.NewWhereClause(query.CombinatorAnd)
 	w.AddClause(match)
 	return w, nil
@@ -207,15 +207,15 @@ func whereClauseBase(r *http.Request) query.Clauser {
 		w.AddClause(clause)
 	}
 	w.AddClause(shared.SearchClause(r))
-	w.AddClause(ageClause(r, "ageMin", query.ComparatorGreaterEqual))
-	w.AddClause(ageClause(r, "ageMax", query.ComparatorLesserEqual))
+	w.AddClause(ageClause(r, "ageMin", query.ComparisonGreaterEqual))
+	w.AddClause(ageClause(r, "ageMax", query.ComparisonLesserEqual))
 	w.AddClause(genderMaskClause(r))
-	w.AddClause(dateMaskClause(r, "dateMin", query.ComparatorGreaterEqual))
-	w.AddClause(dateMaskClause(r, "dateMax", query.ComparatorLesserEqual))
+	w.AddClause(dateMaskClause(r, "dateMin", query.ComparisonGreaterEqual))
+	w.AddClause(dateMaskClause(r, "dateMax", query.ComparisonLesserEqual))
 	return w
 }
 
-func ageClause(r *http.Request, key string, comparator query.Comparator) query.Clauser {
+func ageClause(r *http.Request, key string, comparator query.Comparison) query.Clauser {
 	ok, value := shared.MaybeQueryInt(r, key)
 	if !ok {
 		return nil
@@ -237,7 +237,7 @@ func genderMaskClause(r *http.Request) query.Clauser {
 	if !ok {
 		return nil
 	}
-	return query.NewCompareClause(query.ComparatorEqual, "is_male", isMale)
+	return query.NewCompareClause(query.ComparisonEqual, "is_male", isMale)
 }
 
 type orderKind int
@@ -299,7 +299,7 @@ func pickOrderDirection(r *http.Request) query.Ordering {
 	return orderDirection
 }
 
-func dateMaskClause(r *http.Request, key string, comparator query.Comparator) query.Clauser {
+func dateMaskClause(r *http.Request, key string, comparator query.Comparison) query.Clauser {
 	querystrings, ok := r.URL.Query()[key]
 	if !ok {
 		return nil

@@ -5,7 +5,7 @@ import "testing"
 func TestCompareClause(t *testing.T) {
 	query := baseQuery()
 	w := NewWhereClause(CombinatorAnd)
-	equals := NewCompareClause(ComparatorEqual, "column", 3)
+	equals := NewCompareClause(ComparisonEqual, "column", 3)
 	w.AddClause(equals)
 	query.AddClause(w)
 	const wanted = "SELECT a, b FROM test WHERE column = $1"
