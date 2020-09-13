@@ -13,12 +13,21 @@ type state struct {
 	Name string
 }
 
-// HandleRouteFactory creates functions to respond to queries
+// HandleBaseRouteFactory creates functions to respond to queries
 // on enumeration tables that include id and name
-func HandleRouteFactory(tableName string) http.HandlerFunc {
+func HandleBaseRouteFactory(tableName string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := buildQuery(r, tableName)
 		shared.HandleRoute(w, r, query, translateRow)
+	}
+}
+
+// HandleIDRouteFactory creates functions to respond to queries
+// on enumeration tables that include id and name
+func HandleIDRouteFactory(tableName string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		query := buildQuery(r, tableName)
+		shared.HandleIDRoute(w, r, query, translateRow)
 	}
 }
 

@@ -14,15 +14,13 @@ import (
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
-var (
-	enumTables = []string{
-		"agency",
-		"cause",
-		"county",
-		"race",
-		"use_of_force",
-	}
-)
+var enumTables = []string{
+	"agency",
+	"cause",
+	"county",
+	"race",
+	"use_of_force",
+}
 
 func main() {
 	defer shared.Db.Close()
@@ -32,10 +30,16 @@ func main() {
 		r.Get("/", cityroute.HandleBaseRoute)
 		r.Get("/{id}", cityroute.HandleIDRoute)
 	})
-	r.Get("/state", stateroute.HandleRoute)
+	r.Route("/state", func(r chi.Router) {
+		r.Get("/", stateroute.HandleBaseRoute)
+		r.Get("/{id}", stateroute.HandleIDRoute)
+	})
 	for _, table := range enumTables {
 		route := fmt.Sprintf("/%s", table)
-		r.Get(route, enumroute.HandleRouteFactory(table))
+		r.Route(route, func(r chi.Router) {
+			r.Get("/", enumroute.HandleBaseRouteFactory(table))
+			r.Get("/{id}", enumroute.HandleIDRouteFactory(table))
+		})
 	}
 	r.Route("/incident", func(r chi.Router) {
 		r.Get("/", incidentroute.HandleRouteBase)

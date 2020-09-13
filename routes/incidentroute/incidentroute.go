@@ -47,65 +47,8 @@ type detailRow struct {
 	VideoURL    *string `json:"videoUrl"`
 }
 
-// Todo: response sorting
-// Todo: id queries
-
-type rowKind int
-
-const (
-	rowKindID rowKind = iota
-	rowKindMapping
-	rowKindListing
-	rowKindDetail
-)
-
 type responseRow interface {
 	FromRow(rows *sql.Rows)
-}
-
-var rowNamesID = []string{
-	"id",
-}
-
-var rowNamesMapping = []string{
-	"id",
-	"latitude",
-	"longitude",
-}
-
-var rowNamesListing = []string{
-	"id",
-	"name",
-	"age",
-	"date",
-	"image_url",
-}
-
-var rowNamesDetail = []string{
-	"id",
-	"is_male",
-	"zipcode",
-	"race",
-	"county",
-	"agency",
-	"cause",
-	"use_of_force",
-	"city",
-	"address",
-	"description",
-	"article_url",
-	"video_url",
-}
-
-var enumTables = []string{
-	"id",
-	"agency",
-	"cause",
-	"city",
-	"county",
-	"race",
-	"state",
-	"use_of_force",
 }
 
 // HandleRouteBase responds to /incident/ routes
@@ -122,13 +65,6 @@ func HandleRouteID(w http.ResponseWriter, r *http.Request) {
 	selectClause := selectClause(kind)
 	translateRow := translateFunc(kind)
 	shared.HandleIDRoute(w, r, selectClause, translateRow)
-}
-
-var querystringToRowKinds = map[string]rowKind{
-	"id":      rowKindID,
-	"mapping": rowKindMapping,
-	"listing": rowKindListing,
-	"detail":  rowKindDetail,
 }
 
 func pickRowKind(r *http.Request) rowKind {
@@ -159,15 +95,15 @@ func selectClause(kind rowKind) query.Clauser {
 func rowNames(kind rowKind) []string {
 	switch kind {
 	case rowKindID:
-		return rowNamesID
+		return rowNamesID[:]
 	case rowKindMapping:
-		return rowNamesMapping
+		return rowNamesMapping[:]
 	case rowKindListing:
-		return rowNamesListing
+		return rowNamesListing[:]
 	case rowKindDetail:
-		return rowNamesDetail
+		return rowNamesDetail[:]
 	}
-	return rowNamesID
+	return rowNamesID[:]
 }
 
 func whereClauseBase(r *http.Request) query.Clauser {
@@ -193,11 +129,6 @@ func ageClause(r *http.Request, key string, comparator query.Comparison) query.C
 	return query.NewCompareClause(comparator, "age", value)
 }
 
-var genders = map[string]bool{
-	"male":   true,
-	"female": false,
-}
-
 func genderMaskClause(r *http.Request) query.Clauser {
 	querystrings, ok := r.URL.Query()["gender"]
 	if !ok {
@@ -208,29 +139,6 @@ func genderMaskClause(r *http.Request) query.Clauser {
 		return nil
 	}
 	return query.NewCompareClause(query.ComparisonEqual, "is_male", isMale)
-}
-
-type orderKind int
-
-const (
-	orderKindID orderKind = iota
-	orderKindAge
-	orderKindName
-	orderKindDate
-)
-
-var orderKindColumns = []string{
-	"id",
-	"age",
-	"name",
-	"date",
-}
-
-var querystringToOrderKind = map[string]orderKind{
-	"id":   orderKindID,
-	"age":  orderKindAge,
-	"name": orderKindName,
-	"date": orderKindDate,
 }
 
 func orderClause(r *http.Request) query.Clauser {
@@ -250,11 +158,6 @@ func pickOrderKind(r *http.Request) orderKind {
 		return orderKindID
 	}
 	return order
-}
-
-var querystringToOrderDirection = map[string]query.Ordering{
-	"ascending":  query.OrderingAscending,
-	"descending": query.OrderingDescending,
 }
 
 func pickOrderDirection(r *http.Request) query.Ordering {

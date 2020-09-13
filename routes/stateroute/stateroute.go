@@ -15,9 +15,20 @@ type state struct {
 	Shortname string `json:"shortname"`
 }
 
-// HandleRoute responds to /city queries
-func HandleRoute(w http.ResponseWriter, r *http.Request) {
+var desiredRowNames = [...]string{
+	"id",
+	"name",
+	"shortname",
+}
+
+// HandleBaseRoute responds to /city queries
+func HandleBaseRoute(w http.ResponseWriter, r *http.Request) {
 	shared.HandleRoute(w, r, buildQuery(r), translateRow)
+}
+
+// HandleIDRoute responds to /city queries
+func HandleIDRoute(w http.ResponseWriter, r *http.Request) {
+	shared.HandleIDRoute(w, r, selectClause(), translateRow)
 }
 
 func buildQuery(r *http.Request) query.Clauser {
@@ -30,12 +41,7 @@ func buildQuery(r *http.Request) query.Clauser {
 }
 
 func selectClause() query.Clauser {
-	desiredRowNames := []string{
-		"id",
-		"name",
-		"shortname",
-	}
-	return query.NewSelectClause("state", desiredRowNames)
+	return query.NewSelectClause("state", desiredRowNames[:])
 }
 
 func whereClause(r *http.Request) query.Clauser {
