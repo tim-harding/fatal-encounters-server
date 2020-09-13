@@ -3,10 +3,8 @@ package incidentroute
 import (
 	"database/sql"
 	"net/http"
-	"strconv"
 	"time"
 
-	"github.com/go-chi/chi"
 	"github.com/tim-harding/fatal-encounters-server/query"
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
@@ -121,13 +119,9 @@ func HandleRouteBase(w http.ResponseWriter, r *http.Request) {
 // HandleRouteID responds to /incident/{id} routes
 func HandleRouteID(w http.ResponseWriter, r *http.Request) {
 	kind := pickRowKind(r)
-	query, err := buildIDQuery(r, kind)
-	if err != nil {
-		shared.Error(w, err, http.StatusBadRequest)
-		return
-	}
+	selectClause := selectClause(kind)
 	translateRow := translateFunc(kind)
-	shared.HandleRoute(w, r, query, translateRow)
+	shared.HandleIDRoute(w, r, selectClause, translateRow)
 }
 
 var querystringToRowKinds = map[string]rowKind{
@@ -156,30 +150,6 @@ func buildBaseQuery(r *http.Request, kind rowKind) query.Clauser {
 	q.AddClause(orderClause(r))
 	q.AddClause(shared.LimitClause(r))
 	return q
-}
-
-func buildIDQuery(r *http.Request, kind rowKind) (query.Clauser, error) {
-	w, err := whereClauseID(r)
-	if err != nil {
-		return nil, err
-	}
-	q := query.NewQuery()
-	q.AddClause(selectClause(kind))
-	q.AddClause(w)
-	q.AddClause(shared.LimitClause(r))
-	return q, nil
-}
-
-func whereClauseID(r *http.Request) (query.Clauser, error) {
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		return nil, err
-	}
-	match := query.NewCompareClause(query.ComparisonEqual, "id", id)
-	w := query.NewWhereClause(query.CombinatorAnd)
-	w.AddClause(match)
-	return w, nil
 }
 
 func selectClause(kind rowKind) query.Clauser {

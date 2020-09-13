@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-chi/chi"
 	"github.com/tim-harding/fatal-encounters-server/query"
 )
 
@@ -143,4 +144,37 @@ func InClause(r *http.Request, column string) query.Clauser {
 		}
 	}
 	return query.NewInClause(column, mask)
+}
+
+// HandleIDRoute creates a handler function for ID routes
+func HandleIDRoute(w http.ResponseWriter, r *http.Request, selectClause query.Clauser, rowTranslator RowTranslatorFunc) {
+	query, err := buildWhereQuery(selectClause, r)
+	if err != nil {
+		Error(w, err, http.StatusBadRequest)
+		return
+	}
+	HandleRoute(w, r, query, rowTranslator)
+}
+
+func buildWhereQuery(base query.Clauser, r *http.Request) (query.Clauser, error) {
+	w, err := whereClauseID(r)
+	if err != nil {
+		return nil, err
+	}
+	q := query.NewQuery()
+	q.AddClause(base)
+	q.AddClause(w)
+	return q, nil
+}
+
+func whereClauseID(r *http.Request) (query.Clauser, error) {
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return nil, err
+	}
+	match := query.NewCompareClause(query.ComparisonEqual, "id", id)
+	w := query.NewWhereClause(query.CombinatorAnd)
+	w.AddClause(match)
+	return w, nil
 }

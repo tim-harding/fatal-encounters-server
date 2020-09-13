@@ -14,12 +14,17 @@ type city struct {
 	State int    `json:"state"`
 }
 
-// HandleRoute responds to /city queries
-func HandleRoute(w http.ResponseWriter, r *http.Request) {
-	shared.HandleRoute(w, r, buildQuery(r), translateRow)
+// HandleBaseRoute responds to /city queries
+func HandleBaseRoute(w http.ResponseWriter, r *http.Request) {
+	shared.HandleRoute(w, r, buildBaseQuery(r), translateRow)
 }
 
-func buildQuery(r *http.Request) query.Clauser {
+// HandleIDRoute responds to /city/{id} queries
+func HandleIDRoute(w http.ResponseWriter, r *http.Request) {
+	shared.HandleIDRoute(w, r, selectClause(), translateRow)
+}
+
+func buildBaseQuery(r *http.Request) query.Clauser {
 	q := query.NewQuery()
 	q.AddClause(selectClause())
 	q.AddClause(whereClause(r))
@@ -28,12 +33,13 @@ func buildQuery(r *http.Request) query.Clauser {
 	return q
 }
 
+var desiredRowNames = []string{
+	"id",
+	"name",
+	"state",
+}
+
 func selectClause() query.Clauser {
-	desiredRowNames := []string{
-		"id",
-		"name",
-		"state",
-	}
 	return query.NewSelectClause("city", desiredRowNames)
 }
 

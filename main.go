@@ -28,7 +28,10 @@ func main() {
 	defer shared.Db.Close()
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Get("/city", cityroute.HandleRoute)
+	r.Route("/city", func(r chi.Router) {
+		r.Get("/", cityroute.HandleBaseRoute)
+		r.Get("/{id}", cityroute.HandleIDRoute)
+	})
 	r.Get("/state", stateroute.HandleRoute)
 	for _, table := range enumTables {
 		route := fmt.Sprintf("/%s", table)
