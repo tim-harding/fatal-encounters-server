@@ -28,7 +28,7 @@ func NewOrderClause(ordering Ordering, columns []string) Clauser {
 func (c *orderClause) String() string {
 	columns := strings.Join(c.columns, ", ")
 	ordering := []string{"ASC", "DESC"}[c.ordering]
-	return fmt.Sprintf("ORDER BY %s %s", columns, ordering)
+	return fmt.Sprintf("ORDER BY %s %s NULLS LAST", columns, ordering)
 }
 
 func (c *orderClause) Parameters() []interface{} {

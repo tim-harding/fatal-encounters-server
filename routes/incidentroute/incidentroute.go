@@ -130,22 +130,23 @@ func HandleRouteID(w http.ResponseWriter, r *http.Request) {
 	shared.HandleRoute(w, r, buildQuery, translateRow)
 }
 
+var querystringToRowKinds = map[string]rowKind{
+	"id":      rowKindID,
+	"mapping": rowKindMapping,
+	"listing": rowKindListing,
+	"detail":  rowKindDetail,
+}
+
 func pickRowKind(r *http.Request) rowKind {
 	querystrings, ok := r.URL.Query()["rowKind"]
-	if !ok || len(querystrings) < 1 {
+	if !ok {
 		return rowKindID
 	}
-	switch querystrings[0] {
-	case "id":
+	kind, ok := querystringToRowKinds[querystrings[0]]
+	if !ok {
 		return rowKindID
-	case "mapping":
-		return rowKindMapping
-	case "listing":
-		return rowKindListing
-	case "detail":
-		return rowKindDetail
 	}
-	return rowKindID
+	return kind
 }
 
 func buildQueryBaseFactory(kind rowKind) shared.QueryBuilderFunc {
@@ -153,7 +154,7 @@ func buildQueryBaseFactory(kind rowKind) shared.QueryBuilderFunc {
 		q := query.NewQuery()
 		q.AddClause(selectClause(kind))
 		q.AddClause(whereClauseBase(r))
-		q.AddClause(query.NewOrderClause(query.OrderingAscending, []string{"id"}))
+		q.AddClause(orderClause(r))
 		q.AddClause(shared.LimitClause(r))
 		return q
 	}
@@ -227,28 +228,85 @@ func ageClause(r *http.Request, key string, comparator query.Comparator) query.C
 	return query.NewCompareClause(comparator, "age", value)
 }
 
+var genders = map[string]bool{
+	"male":   true,
+	"female": false,
+}
+
 func genderMaskClause(r *http.Request) query.Clauser {
 	querystrings, ok := r.URL.Query()["gender"]
-	if !ok || len(querystrings) < 1 {
+	if !ok {
 		return nil
 	}
-	var male bool
-	switch querystrings[0] {
-	case "male":
-		male = true
-		break
-	case "female":
-		male = false
-		break
-	default:
+	isMale, ok := genders[querystrings[0]]
+	if !ok {
 		return nil
 	}
-	return query.NewCompareClause(query.ComparatorEqual, "is_male", male)
+	return query.NewCompareClause(query.ComparatorEqual, "is_male", isMale)
+}
+
+type orderKind int
+
+const (
+	orderKindID orderKind = iota
+	orderKindAge
+	orderKindName
+	orderKindDate
+)
+
+var orderKindColumns = []string{
+	"id",
+	"age",
+	"name",
+	"date",
+}
+
+var querystringToOrderKind = map[string]orderKind{
+	"id":   orderKindID,
+	"age":  orderKindAge,
+	"name": orderKindName,
+	"date": orderKindDate,
+}
+
+func orderClause(r *http.Request) query.Clauser {
+	kind := pickOrderKind(r)
+	column := orderKindColumns[kind]
+	direction := pickOrderDirection(r)
+	return query.NewOrderClause(direction, []string{column})
+}
+
+func pickOrderKind(r *http.Request) orderKind {
+	querystrings, ok := r.URL.Query()["order"]
+	if !ok {
+		return orderKindID
+	}
+	order, ok := querystringToOrderKind[querystrings[0]]
+	if !ok {
+		return orderKindID
+	}
+	return order
+}
+
+var querystringToOrderDirection = map[string]query.Ordering{
+	"ascending":  query.OrderingAscending,
+	"descending": query.OrderingDescending,
+}
+
+func pickOrderDirection(r *http.Request) query.Ordering {
+	querystrings, ok := r.URL.Query()["orderDirection"]
+	if !ok {
+		return query.OrderingAscending
+	}
+	orderDirection, ok := querystringToOrderDirection[querystrings[0]]
+	if !ok {
+		return query.OrderingAscending
+	}
+	return orderDirection
 }
 
 func dateMaskClause(r *http.Request, key string, comparator query.Comparator) query.Clauser {
 	querystrings, ok := r.URL.Query()[key]
-	if !ok || len(querystrings) < 1 {
+	if !ok {
 		return nil
 	}
 	t, err := time.Parse("2006-Jan-02", querystrings[0])
