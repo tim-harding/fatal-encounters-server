@@ -7,14 +7,24 @@ import "github.com/tim-harding/fatal-encounters-server/query"
 
 var (
 	enumTables = [...]string{
-		"id",
 		"agency",
 		"cause",
 		"city",
 		"county",
 		"race",
-		"state",
 		"use_of_force",
+	}
+
+	idQueryTables = [...]string{
+		// Same as enumTables
+		"agency",
+		"cause",
+		"city",
+		"county",
+		"race",
+		"use_of_force",
+		// Need to join on city for this
+		"state",
 	}
 
 	genders = map[string]bool{
@@ -33,37 +43,45 @@ var (
 
 var (
 	rowNamesID = [...]string{
-		"id",
+		"incident.id",
 	}
 
-	rowNamesMapping = [...]string{
-		"id",
-		"latitude",
-		"longitude",
-	}
-
-	rowNamesListing = [...]string{
-		"id",
-		"name",
-		"age",
-		"date",
-		"image_url",
+	rowNamesPosition = [...]string{
+		"incident.id",
+		"incident.latitude",
+		"incident.longitude",
 	}
 
 	rowNamesDetail = [...]string{
-		"id",
-		"is_male",
-		"zipcode",
-		"race",
-		"county",
-		"agency",
-		"cause",
-		"use_of_force",
-		"city",
-		"address",
-		"description",
-		"article_url",
-		"video_url",
+		"incident.id",
+		"incident.name",
+		"incident.age",
+		"incident.date",
+		"incident.image_url",
+		"incident.is_male",
+		"incident.address",
+		"incident.description",
+		"incident.article_url",
+		"incident.video_url",
+		"incident.zipcode",
+
+		"cause.id",
+		"cause.name",
+
+		"use_of_force.id",
+		"use_of_force.name",
+
+		"race.id",
+		"race.name",
+
+		"county.id",
+		"county.name",
+
+		"agency.id",
+		"agency.name",
+
+		"city.id",
+		"city.name",
 	}
 )
 
@@ -74,17 +92,15 @@ type rowKind int
 
 const (
 	rowKindID rowKind = iota
-	rowKindMapping
-	rowKindListing
+	rowKindPosition
 	rowKindDetail
 )
 
 var (
 	querystringToRowKinds = map[string]rowKind{
-		"id":      rowKindID,
-		"mapping": rowKindMapping,
-		"listing": rowKindListing,
-		"detail":  rowKindDetail,
+		"id":       rowKindID,
+		"position": rowKindPosition,
+		"detail":   rowKindDetail,
 	}
 )
 

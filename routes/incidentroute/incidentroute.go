@@ -2,6 +2,7 @@ package incidentroute
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -9,42 +10,48 @@ import (
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
-type coordinate struct {
+type position struct {
 	Latitude  float32 `json:"lat"`
-	Longitude float32 `json:"long"`
+	Longitude float32 `json:"lng"`
 }
 
 type idRow struct {
 	ID int `json:"id"`
 }
 
-type mappingRow struct {
+type positionRow struct {
 	idRow
-	Coordinate coordinate `json:"coordinate"`
+	Position position `json:"position"`
 }
 
-type listingRow struct {
+type enum struct {
 	idRow
-	Name     *string   `json:"name"`
-	Age      *int      `json:"age"`
-	Date     time.Time `json:"date"`
-	ImageURL *string   `json:"imageUrl"`
+	Name string `json:"name"`
+}
+
+type maybeEnum struct {
+	ID   *int
+	Name *string
 }
 
 type detailRow struct {
 	idRow
-	IsMale      *bool   `json:"isMale"`
-	Zipcode     *int    `json:"zipcode"`
-	Race        *int    `json:"race"`
-	County      *int    `json:"county"`
-	Agency      *int    `json:"agency"`
-	Cause       int     `json:"cause"`
-	UseOfForce  int     `json:"useOfForce"`
-	City        *int    `json:"city"`
-	Address     *string `json:"address"`
-	Description string  `json:"description"`
-	ArticleURL  *string `json:"articleUrl"`
-	VideoURL    *string `json:"videoUrl"`
+	Name        *string   `json:"name"`
+	Age         *int      `json:"age"`
+	Date        time.Time `json:"date"`
+	ImageURL    *string   `json:"imageUrl"`
+	IsMale      *bool     `json:"isMale"`
+	Address     *string   `json:"address"`
+	Description string    `json:"description"`
+	ArticleURL  *string   `json:"articleUrl"`
+	VideoURL    *string   `json:"videoUrl"`
+	Zipcode     *int      `json:"zipcode"`
+	Cause       enum      `json:"cause"`
+	UseOfForce  enum      `json:"useOfForce"`
+	Race        *enum     `json:"race"`
+	County      *enum     `json:"county"`
+	Agency      *enum     `json:"agency"`
+	City        *enum     `json:"city"`
 }
 
 type responseRow interface {
@@ -82,6 +89,9 @@ func pickRowKind(r *http.Request) rowKind {
 func buildBaseQuery(r *http.Request, kind rowKind) query.Clauser {
 	q := query.NewQuery()
 	q.AddClause(selectClause(kind))
+	for _, clause := range joinClauses(kind) {
+		q.AddClause(clause)
+	}
 	q.AddClause(whereClauseBase(r))
 	q.AddClause(orderClause(r))
 	q.AddClause(shared.LimitClause(r))
@@ -96,19 +106,34 @@ func rowNames(kind rowKind) []string {
 	switch kind {
 	case rowKindID:
 		return rowNamesID[:]
-	case rowKindMapping:
-		return rowNamesMapping[:]
-	case rowKindListing:
-		return rowNamesListing[:]
+	case rowKindPosition:
+		return rowNamesPosition[:]
 	case rowKindDetail:
 		return rowNamesDetail[:]
 	}
 	return rowNamesID[:]
 }
 
+func joinClauses(kind rowKind) []query.Clauser {
+	// TODO: Need to join on city if making a query for state IDs
+	switch kind {
+	case rowKindID:
+	case rowKindPosition:
+		return []query.Clauser{}
+	case rowKindDetail:
+		clauses := make([]query.Clauser, 0, len(enumTables))
+		for _, table := range enumTables {
+			clause := query.NewJoinClause(table)
+			clauses = append(clauses, clause)
+		}
+		return clauses
+	}
+	return []query.Clauser{}
+}
+
 func whereClauseBase(r *http.Request) query.Clauser {
 	w := query.NewWhereClause(query.CombinatorAnd)
-	for _, table := range enumTables {
+	for _, table := range idQueryTables {
 		clause := shared.InClause(r, table)
 		w.AddClause(clause)
 	}
@@ -144,6 +169,7 @@ func genderMaskClause(r *http.Request) query.Clauser {
 func orderClause(r *http.Request) query.Clauser {
 	kind := pickOrderKind(r)
 	column := orderKindColumns[kind]
+	column = fmt.Sprintf("incident.%s", column)
 	direction := pickOrderDirection(r)
 	return query.NewOrderClause(direction, []string{column})
 }
@@ -188,10 +214,8 @@ func translateFunc(kind rowKind) shared.RowTranslatorFunc {
 	switch kind {
 	case rowKindID:
 		return translateIDRow
-	case rowKindMapping:
-		return translateMappingRow
-	case rowKindListing:
-		return translateListingRow
+	case rowKindPosition:
+		return translatePositionRow
 	case rowKindDetail:
 		return translateDetailRow
 	}
@@ -206,44 +230,73 @@ func translateIDRow(rows *sql.Rows) (interface{}, error) {
 	return row, err
 }
 
-func translateMappingRow(rows *sql.Rows) (interface{}, error) {
-	row := mappingRow{}
+func translatePositionRow(rows *sql.Rows) (interface{}, error) {
+	row := positionRow{}
 	err := rows.Scan(
 		&row.ID,
-		&row.Coordinate.Latitude,
-		&row.Coordinate.Longitude,
-	)
-	return row, err
-}
-
-func translateListingRow(rows *sql.Rows) (interface{}, error) {
-	row := listingRow{}
-	err := rows.Scan(
-		&row.ID,
-		&row.Name,
-		&row.Age,
-		&row.Date,
-		&row.ImageURL,
+		&row.Position.Latitude,
+		&row.Position.Longitude,
 	)
 	return row, err
 }
 
 func translateDetailRow(rows *sql.Rows) (interface{}, error) {
 	row := detailRow{}
-	err := rows.Scan(
-		&row.ID,
-		&row.IsMale,
-		&row.Zipcode,
+
+	enums := make([]maybeEnum, 4)
+	targets := []**enum{
 		&row.Race,
 		&row.County,
 		&row.Agency,
-		&row.Cause,
-		&row.UseOfForce,
 		&row.City,
+	}
+
+	err := rows.Scan(
+		&row.ID,
+		&row.Name,
+		&row.Age,
+		&row.Date,
+		&row.ImageURL,
+		&row.IsMale,
 		&row.Address,
 		&row.Description,
 		&row.ArticleURL,
 		&row.VideoURL,
+		&row.Zipcode,
+
+		&row.Cause.ID,
+		&row.Cause.Name,
+
+		&row.UseOfForce.ID,
+		&row.UseOfForce.Name,
+
+		&enums[0].ID,
+		&enums[0].Name,
+
+		&enums[1].ID,
+		&enums[1].Name,
+
+		&enums[2].ID,
+		&enums[2].Name,
+
+		&enums[3].ID,
+		&enums[3].Name,
 	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for i, maybe := range enums {
+		if maybe.ID != nil {
+			*targets[i] = &enum{
+				idRow{
+					*maybe.ID,
+				},
+				*maybe.Name,
+			}
+		}
+	}
+
 	return row, err
 }
