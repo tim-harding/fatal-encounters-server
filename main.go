@@ -42,8 +42,9 @@ func main() {
 		})
 	}
 	r.Route("/incident", func(r chi.Router) {
-		r.Get("/", incidentroute.HandleRouteBase)
-		r.Get("/{id}", incidentroute.HandleRouteID)
+		r.Get("/filter", incidentroute.HandleIncidentFilterRoute)
+		r.Get("/position", incidentroute.HandleIncidentPositionRoute)
+		r.Get("/detail/{id}", incidentroute.HandleIncidentDetailRoute)
 	})
 	err := http.ListenAndServe(":3000", r)
 	if err != nil {

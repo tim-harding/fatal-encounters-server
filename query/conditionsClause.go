@@ -24,7 +24,7 @@ var tokens = []string{
 // NewConditionsClause creates a new grouping of clauses for a WHERE statement
 func NewConditionsClause(combinator Combinator) Subclauser {
 	combinatorToken := tokens[combinator]
-	expr := newSubexpression(combinatorToken)
+	expr := NewSubexpression(combinatorToken)
 	return &conditionsClause{expr}
 }
 

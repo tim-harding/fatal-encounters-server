@@ -19,7 +19,7 @@ type Subclauser interface {
 
 // NewQuery creates an empty query
 func NewQuery() Subclauser {
-	return &query{newSubexpression(" ")}
+	return &query{NewSubexpression(" ")}
 }
 
 type query struct {

@@ -23,7 +23,7 @@ var (
 		"county",
 		"race",
 		"use_of_force",
-		// Need to join on city for this
+		// ...plus state
 		"state",
 	}
 
@@ -42,66 +42,55 @@ var (
 // ------------------------------------------------------------
 
 var (
-	rowNamesID = [...]string{
-		"incident.id",
-	}
+	rowNames = [...][]string{
+		{
+			"incident.id",
+		},
+		{
+			"incident.id",
+			"incident.latitude",
+			"incident.longitude",
+		},
+		{
+			"incident.id",
+			"incident.name",
+			"incident.age",
+			"incident.date",
+			"incident.image_url",
+			"incident.is_male",
+			"incident.address",
+			"incident.description",
+			"incident.article_url",
+			"incident.video_url",
+			"incident.zipcode",
 
-	rowNamesPosition = [...]string{
-		"incident.id",
-		"incident.latitude",
-		"incident.longitude",
-	}
+			"cause.id",
+			"cause.name",
 
-	rowNamesDetail = [...]string{
-		"incident.id",
-		"incident.name",
-		"incident.age",
-		"incident.date",
-		"incident.image_url",
-		"incident.is_male",
-		"incident.address",
-		"incident.description",
-		"incident.article_url",
-		"incident.video_url",
-		"incident.zipcode",
+			"use_of_force.id",
+			"use_of_force.name",
 
-		"cause.id",
-		"cause.name",
+			"race.id",
+			"race.name",
 
-		"use_of_force.id",
-		"use_of_force.name",
+			"county.id",
+			"county.name",
 
-		"race.id",
-		"race.name",
+			"agency.id",
+			"agency.name",
 
-		"county.id",
-		"county.name",
-
-		"agency.id",
-		"agency.name",
-
-		"city.id",
-		"city.name",
+			"city.id",
+			"city.name",
+		},
 	}
 )
-
-// Row kind
-// ------------------------------------------------------------
 
 type rowKind int
 
 const (
-	rowKindID rowKind = iota
+	rowKindFilter rowKind = iota
 	rowKindPosition
 	rowKindDetail
-)
-
-var (
-	querystringToRowKinds = map[string]rowKind{
-		"id":       rowKindID,
-		"position": rowKindPosition,
-		"detail":   rowKindDetail,
-	}
 )
 
 // Order kind
