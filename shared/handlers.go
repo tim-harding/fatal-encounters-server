@@ -3,6 +3,7 @@ package shared
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -152,8 +153,8 @@ func queryInts(r *http.Request, key string) []int {
 }
 
 // HandleIDRoute creates a handler function for ID routes
-func HandleIDRoute(w http.ResponseWriter, r *http.Request, selectClause query.Clauser, rowTranslator RowTranslatorFunc) {
-	query, err := buildWhereQuery(selectClause, r)
+func HandleIDRoute(w http.ResponseWriter, r *http.Request, selectClause query.Clauser, rowTranslator RowTranslatorFunc, table string) {
+	query, err := buildWhereQuery(selectClause, r, table)
 	if err != nil {
 		Error(w, err, http.StatusBadRequest)
 		return
@@ -161,8 +162,8 @@ func HandleIDRoute(w http.ResponseWriter, r *http.Request, selectClause query.Cl
 	HandleRoute(w, r, query, rowTranslator)
 }
 
-func buildWhereQuery(base query.Clauser, r *http.Request) (query.Clauser, error) {
-	w, err := whereClauseID(r)
+func buildWhereQuery(base query.Clauser, r *http.Request, table string) (query.Clauser, error) {
+	w, err := whereClauseID(r, table)
 	if err != nil {
 		return nil, err
 	}
@@ -172,22 +173,29 @@ func buildWhereQuery(base query.Clauser, r *http.Request) (query.Clauser, error)
 	return q, nil
 }
 
-func whereClauseID(r *http.Request) (query.Clauser, error) {
+func whereClauseID(r *http.Request, table string) (query.Clauser, error) {
 	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		return nil, err
+	idStrs := strings.Split(idStr, ",")
+	ids := []int{}
+	for _, str := range idStrs {
+		id, err := strconv.Atoi(str)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
 	}
-	match := query.NewCompareClause(query.ComparisonEqual, "id", id)
+	column := fmt.Sprintf("%s.id", table)
+	in := query.NewInClause(column, ids)
 	w := query.NewWhereClause(query.CombinatorAnd)
-	w.AddClause(match)
+	w.AddClause(in)
 	return w, nil
 }
 
 // IgnoreClause sets up the query to reject certain IDs from the response
-func IgnoreClause(r *http.Request) query.Clauser {
+func IgnoreClause(r *http.Request, table string) query.Clauser {
 	values := queryInts(r, "ignore")
-	in := query.NewInClause("id", values)
+	column := fmt.Sprintf("%s.id", table)
+	in := query.NewInClause(column, values)
 	not := query.NewNotClause(in)
 	return not
 }

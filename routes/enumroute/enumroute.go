@@ -24,17 +24,17 @@ func HandleBaseRouteFactory(tableName string) http.HandlerFunc {
 
 // HandleIDRouteFactory creates functions to respond to queries
 // on enumeration tables that include id and name
-func HandleIDRouteFactory(tableName string) http.HandlerFunc {
+func HandleIDRouteFactory(table string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		query := buildQuery(r, tableName)
-		shared.HandleIDRoute(w, r, query, translateRow)
+		query := buildQuery(r, table)
+		shared.HandleIDRoute(w, r, query, translateRow, "tableName")
 	}
 }
 
-func buildQuery(r *http.Request, tableName string) query.Clauser {
+func buildQuery(r *http.Request, table string) query.Clauser {
 	q := query.NewQuery()
-	q.AddClause(selectClause(tableName))
-	q.AddClause(whereClause(r))
+	q.AddClause(selectClause(table))
+	q.AddClause(whereClause(r, table))
 	q.AddClause(orderClause())
 	q.AddClause(shared.LimitClause(r))
 	return q
@@ -48,10 +48,10 @@ func selectClause(tableName string) query.Clauser {
 	return query.NewSelectClause(tableName, desiredRowNames)
 }
 
-func whereClause(r *http.Request) query.Clauser {
+func whereClause(r *http.Request, table string) query.Clauser {
 	w := query.NewWhereClause(query.CombinatorAnd)
 	w.AddClause(shared.SearchClause(r))
-	w.AddClause(shared.IgnoreClause(r))
+	w.AddClause(shared.IgnoreClause(r, table))
 	return w
 }
 

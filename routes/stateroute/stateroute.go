@@ -28,7 +28,7 @@ func HandleBaseRoute(w http.ResponseWriter, r *http.Request) {
 
 // HandleIDRoute responds to /city queries
 func HandleIDRoute(w http.ResponseWriter, r *http.Request) {
-	shared.HandleIDRoute(w, r, selectClause(), translateRow)
+	shared.HandleIDRoute(w, r, selectClause(), translateRow, "state")
 }
 
 func buildQuery(r *http.Request) query.Clauser {
@@ -51,7 +51,7 @@ func whereClause(r *http.Request) query.Clauser {
 		or.AddClause(clause)
 	}
 	w.AddClause(or)
-	w.AddClause(shared.IgnoreClause(r))
+	w.AddClause(shared.IgnoreClause(r, "state"))
 	return w
 }
 

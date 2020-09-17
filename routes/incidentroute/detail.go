@@ -41,7 +41,7 @@ type detailRow struct {
 
 // HandleIncidentDetailRoute responds to /incident/{id} routes
 func HandleIncidentDetailRoute(w http.ResponseWriter, r *http.Request) {
-	shared.HandleIDRoute(w, r, buildDetailQuery(r), translateDetailRow)
+	shared.HandleIDRoute(w, r, buildDetailQuery(r), translateDetailRow, "incident")
 }
 
 func buildDetailQuery(r *http.Request) query.Clauser {

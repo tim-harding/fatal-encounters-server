@@ -44,7 +44,7 @@ func main() {
 	r.Route("/incident", func(r chi.Router) {
 		r.Get("/filter", incidentroute.HandleIncidentFilterRoute)
 		r.Get("/position", incidentroute.HandleIncidentPositionRoute)
-		r.Get("/detail/{id}", incidentroute.HandleIncidentDetailRoute)
+		r.Get("/detail/{id:[0-9,]+}", incidentroute.HandleIncidentDetailRoute)
 	})
 	err := http.ListenAndServe(":3000", r)
 	if err != nil {
