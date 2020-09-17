@@ -23,7 +23,7 @@ func NewQuery() Subclauser {
 }
 
 type query struct {
-	expr subexpression
+	expr Subclauser
 }
 
 func (q *query) String() string {

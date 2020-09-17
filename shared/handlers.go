@@ -130,8 +130,13 @@ func SearchClause(r *http.Request) query.Clauser {
 
 // InClause creates an IN clause from the request
 func InClause(r *http.Request, column string) query.Clauser {
+	values := queryInts(r, column)
+	return query.NewInClause(column, values)
+}
+
+func queryInts(r *http.Request, key string) []int {
 	mask := make([]int, 0)
-	querystrings, ok := r.URL.Query()[column]
+	querystrings, ok := r.URL.Query()[key]
 	if ok {
 		for _, querystring := range querystrings {
 			parts := strings.Split(querystring, ",")
@@ -143,7 +148,7 @@ func InClause(r *http.Request, column string) query.Clauser {
 			}
 		}
 	}
-	return query.NewInClause(column, mask)
+	return mask
 }
 
 // HandleIDRoute creates a handler function for ID routes
@@ -177,4 +182,12 @@ func whereClauseID(r *http.Request) (query.Clauser, error) {
 	w := query.NewWhereClause(query.CombinatorAnd)
 	w.AddClause(match)
 	return w, nil
+}
+
+// IgnoreClause sets up the query to reject certain IDs from the response
+func IgnoreClause(r *http.Request) query.Clauser {
+	values := queryInts(r, "ignore")
+	in := query.NewInClause("id", values)
+	not := query.NewNotClause(in)
+	return not
 }

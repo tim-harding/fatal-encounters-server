@@ -45,10 +45,13 @@ func selectClause() query.Clauser {
 }
 
 func whereClause(r *http.Request) query.Clauser {
-	w := query.NewWhereClause(query.CombinatorOr)
+	w := query.NewWhereClause(query.CombinatorAnd)
+	or := query.NewConditionsClause(query.CombinatorOr)
 	for _, clause := range searchClauses(r) {
-		w.AddClause(clause)
+		or.AddClause(clause)
 	}
+	w.AddClause(or)
+	w.AddClause(shared.IgnoreClause(r))
 	return w
 }
 

@@ -17,7 +17,7 @@ type city struct {
 var desiredRowNames = [...]string{
 	"id",
 	"name",
-	"state",
+	"state_id",
 }
 
 // HandleBaseRoute responds to /city queries
@@ -45,14 +45,15 @@ func selectClause() query.Clauser {
 
 func whereClause(r *http.Request) query.Clauser {
 	w := query.NewWhereClause(query.CombinatorAnd)
-	w.AddClause(shared.InClause(r, "state"))
+	w.AddClause(shared.InClause(r, "state_id"))
 	w.AddClause(shared.SearchClause(r))
+	w.AddClause(shared.IgnoreClause(r))
 	return w
 }
 
 func orderClause() query.Clauser {
 	order := query.OrderingAscending
-	columns := []string{"name", "state"}
+	columns := []string{"name", "state_id", "id"}
 	return query.NewOrderClause(order, columns)
 }
 

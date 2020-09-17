@@ -8,9 +8,9 @@ import (
 	"github.com/tim-harding/fatal-encounters-server/shared"
 )
 
-type state struct {
-	ID   int
-	Name string
+type enum struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 // HandleBaseRouteFactory creates functions to respond to queries
@@ -51,6 +51,7 @@ func selectClause(tableName string) query.Clauser {
 func whereClause(r *http.Request) query.Clauser {
 	w := query.NewWhereClause(query.CombinatorAnd)
 	w.AddClause(shared.SearchClause(r))
+	w.AddClause(shared.IgnoreClause(r))
 	return w
 }
 
@@ -69,6 +70,6 @@ func translateRow(rows *sql.Rows) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	row := state{id, name}
+	row := enum{id, name}
 	return row, nil
 }

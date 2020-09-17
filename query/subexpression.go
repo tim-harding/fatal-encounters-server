@@ -7,9 +7,8 @@ type subexpression struct {
 	parts     []Clauser
 }
 
-// NewSubexpression joins together SQL clauses
-func newSubexpression(connector string) subexpression {
-	return subexpression{connector, []Clauser{}}
+func newSubexpression(connector string) Subclauser {
+	return &subexpression{connector, []Clauser{}}
 }
 
 func (s *subexpression) String() string {
