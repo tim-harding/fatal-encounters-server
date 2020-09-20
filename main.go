@@ -45,6 +45,7 @@ func main() {
 		r.Get("/filter", incidentroute.HandleIncidentFilterRoute)
 		r.Get("/position", incidentroute.HandleIncidentPositionRoute)
 		r.Get("/detail/{id:[0-9,]+}", incidentroute.HandleIncidentDetailRoute)
+		r.Get("/count", incidentroute.HandleCountRoute)
 	})
 	err := http.ListenAndServe(":3000", r)
 	if err != nil {
