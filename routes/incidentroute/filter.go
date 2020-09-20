@@ -23,7 +23,6 @@ func buildFilterQuery(r *http.Request) query.Clauser {
 	q.AddClause(query.NewJoinClause("city"))
 	q.AddClause(whereClauseFilter(r))
 	q.AddClause(orderClause(r))
-	q.AddClause(shared.LimitClause(r))
 	return q
 }
 
