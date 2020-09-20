@@ -120,3 +120,51 @@ var (
 		"date": orderKindDate,
 	}
 )
+
+// /order route stuff
+// ------------------------------------------------------------
+
+const (
+	sqlDropTemp   = "DROP TABLE IF EXISTS filtered"
+	sqlCreateTemp = `
+		CREATE TEMPORARY TABLE IF NOT EXISTS filtered (
+			id INTEGER PRIMARY KEY NOT NULL
+		)
+		ON COMMIT DROP
+	`
+	sqlFiltered = `
+		WHERE incident.id
+		IN (
+			SELECT filtered.id
+			FROM filtered
+		)
+		AND %s IS NOT NULL
+		GROUP BY 1
+		ORDER BY 1
+	`
+)
+
+var (
+	orderColumns = [...]orderColumn{
+		{
+			"race",
+			"race_id",
+			"%s",
+		},
+		{
+			"cause",
+			"cause_id",
+			"%s",
+		},
+		{
+			"year",
+			"date",
+			"EXTRACT(YEAR FROM incident.%s) AS yyyy",
+		},
+		{
+			"age",
+			"age",
+			"%s",
+		},
+	}
+)

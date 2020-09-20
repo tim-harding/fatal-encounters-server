@@ -21,6 +21,16 @@ type countsResponse struct {
 	Rows   []int                 `json:"rows"`
 }
 
+type orderColumn struct {
+	Name       string
+	Column     string
+	translator string
+}
+
+func (o *orderColumn) Translated() string {
+	return fmt.Sprintf(o.translator, o.Column)
+}
+
 // HandleCountRoute handles requests to /incident/count
 func HandleCountRoute(w http.ResponseWriter, r *http.Request) {
 	tx, err := shared.Db.Begin()
@@ -138,58 +148,3 @@ func countQuery(column orderColumn) query.Clauser {
 	q.AddClause(query.NewRawSQL(filtered))
 	return q
 }
-
-const (
-	sqlDropTemp   = "DROP TABLE IF EXISTS filtered"
-	sqlCreateTemp = `
-		CREATE TEMPORARY TABLE IF NOT EXISTS filtered (
-			id INTEGER PRIMARY KEY NOT NULL
-		)
-		ON COMMIT DROP
-	`
-	sqlFiltered = `
-		WHERE incident.id
-		IN (
-			SELECT filtered.id
-			FROM filtered
-		)
-		AND %s IS NOT NULL
-		GROUP BY 1
-		ORDER BY 1
-	`
-)
-
-type orderColumn struct {
-	Name       string
-	Column     string
-	translator string
-}
-
-func (o *orderColumn) Translated() string {
-	return fmt.Sprintf(o.translator, o.Column)
-}
-
-var (
-	orderColumns = [...]orderColumn{
-		{
-			"race",
-			"race_id",
-			"%s",
-		},
-		{
-			"cause",
-			"cause_id",
-			"%s",
-		},
-		{
-			"year",
-			"date",
-			"EXTRACT(YEAR FROM incident.%s) AS yyyy",
-		},
-		{
-			"age",
-			"age",
-			"%s",
-		},
-	}
-)
